@@ -1,0 +1,439 @@
+{
+  "case_id": "dummy_dose_v0",
+  "model": "gpt-5.4",
+  "accepted": true,
+  "R": 0.8869147353281688,
+  "R_unclipped": 0.8869147353281688,
+  "abort_reason": "submitted",
+  "turns": 3,
+  "budget_total": 15000.0,
+  "budget_spent": 10780.0,
+  "tokens": {
+    "prompt": 8118,
+    "completion": 2021,
+    "reasoning": 0,
+    "total": 10139
+  },
+  "signal": {
+    "first_experiment_turn": 2,
+    "first_suspicion_turn": null,
+    "experiment_after_suspicion": null
+  },
+  "trace": [
+    {
+      "turn": 1,
+      "reply_text": "Plan: inspect budget/details, then sample a modest observational batch to infer dose support and basic relationships before spending on experiments.\n```python\nimport pandas as pd, numpy as np\n\ndesc = env.describe()\nprint(\"DESC:\", desc)\n\nobs = env.observe(\"registros_clinicos_2019_2023\", 800)\nprint(\"\\nOBS HEAD:\")\nprint(obs.head())\nprint(\"\\nOBS SHAPE:\", obs.shape)\nprint(\"\\nOBS DESCRIBE:\")\nprint(obs.describe())\n\nprint(\"\\nDose quantiles:\")\nprint(obs[\"dose\"].quantile([0, .01, .05, .1, .25, .5, .75, .9, .95, .99, 1]))\n\n# coarse bins to inspect dose-response shape in observational data\nbins = np.linspace(obs[\"dose\"].min(), obs[\"dose\"].max(), 11)\nobs[\"_bin\"] = pd.cut(obs[\"dose\"], bins=bins, include_lowest=True)\ngrp = obs.groupby(\"_bin\").agg(\n    n=(\"dose\",\"size\"),\n    dose_mean=(\"dose\",\"mean\"),\n    marker_mean=(\"marker\",\"mean\"),\n    marker_sd=(\"marker\",\"std\"),\n    outcome_mean=(\"outcome\",\"mean\"),\n    outcome_sd=(\"outcome\",\"std\"),\n)\nprint(\"\\nBinned summaries:\")\nprint(grp)\n```",
+      "cell": "import pandas as pd, numpy as np\n\ndesc = env.describe()\nprint(\"DESC:\", desc)\n\nobs = env.observe(\"registros_clinicos_2019_2023\", 800)\nprint(\"\\nOBS HEAD:\")\nprint(obs.head())\nprint(\"\\nOBS SHAPE:\", obs.shape)\nprint(\"\\nOBS DESCRIBE:\")\nprint(obs.describe())\n\nprint(\"\\nDose quantiles:\")\nprint(obs[\"dose\"].quantile([0, .01, .05, .1, .25, .5, .75, .9, .95, .99, 1]))\n\n# coarse bins to inspect dose-response shape in observational data\nbins = np.linspace(obs[\"dose\"].min(), obs[\"dose\"].max(), 11)\nobs[\"_bin\"] = pd.cut(obs[\"dose\"], bins=bins, include_lowest=True)\ngrp = obs.groupby(\"_bin\").agg(\n    n=(\"dose\",\"size\"),\n    dose_mean=(\"dose\",\"mean\"),\n    marker_mean=(\"marker\",\"mean\"),\n    marker_sd=(\"marker\",\"std\"),\n    outcome_mean=(\"outcome\",\"mean\"),\n    outcome_sd=(\"outcome\",\"std\"),\n)\nprint(\"\\nBinned summaries:\")\nprint(grp)",
+      "tokens": {
+        "prompt": 1312,
+        "completion": 279,
+        "reasoning": 0
+      },
+      "cell_result": {
+        "ok": true,
+        "stdout": "DESC: {'brief': '# Brief - clinic dose policy\\n\\nYou are advising a clinic that must set its **dose policy** for incoming patient\\npopulations, including doses and populations outside the historical record.\\nGetting the dose-response relationship wrong -- especially where it flattens out\\n(saturates) -- is costly. Your job is to build a model of how this system behaves,\\ngood enough to predict outcomes under dose settings the clinic has not tried yet.\\n\\n## Technical sheet\\n\\nObservables -- every dataset, and your delivered model, use exactly these columns:\\n\\n| column  | type  | unit | meaning                            |\\n|---------|-------|------|------------------------------------|\\n| dose    | float | mg   | administered dose                  |\\n| marker  | float | a.u. | a measured clinical marker (noisy) |\\n| outcome | float | a.u. | recovery score (higher is better)  |\\n\\nSources you can query (each debits budget):\\n\\n- `registros_clinicos_2019_2023` -- routine observational records: one row per past\\n  case, with its administered dose and measured outcome. Cost: 1 unit per row.\\n\\nControl surface (what an experiment can set):\\n\\n- `dose` -- settable in [0, 10] mg.\\n- `cohort` -- a population baseline level; a property of who arrives, which an\\n  experiment can target (e.g. `context={\"cohort\": 1.0}`), not something you set\\n  per patient. The observational source is `cohort = 0`.\\n\\nBudget: abstract units, shown by `env.describe()`. `describe` is free; `observe`\\nand `experiment` debit.\\n\\n## Interaction\\n\\nYou write Python cells. A persistent kernel runs them; variables persist across\\ncells. **Print whatever you want to see** -- only stdout is returned to you\\n(for big DataFrames, print `.head()` and `.shape`). `env` provides:\\n\\n- `env.describe()` -- free; returns this sheet as a dict.\\n- `env.observe(source, n)` -- DataFrame of `n` observational rows; debits cost/row.\\n- `env.experiment(config=..., context=..., n=...)` -- runs a fresh trial under a\\n  dose/population you choose and returns a DataFrame; debits a fixed cost + cost/row.\\n  Example: `env.experiment(config={\"dose\": 6.0}, context={\"cohort\": 0.0}, n=400)`.\\n- `env.submit(code)` -- deliver your model (see below); returns a result with\\n  `.accepted` and `.error`.\\n\\n`numpy`, `pandas`, `scipy`, `sklearn` are importable. No network, no file access.\\n\\n## Delivery contract\\n\\nDeliver a Python program (as a string) defining\\n\\n    def model(regime, n, seed) -> pandas.DataFrame   # columns exactly: dose, marker, outcome\\n\\n`regime` always has `.config` (a dict, possibly empty), `.context` (a dict,\\npossibly empty) and `.horizon` -- use them directly, no defensive checks needed.\\n`regime.config` may fix `dose` (e.g. `{\"dose\": 4.0}`) -- then your model must\\ngenerate outcomes for that fixed dose -- or be empty (generate the natural\\nobservational population). `regime.context` may carry `{\"cohort\": <level>}`.\\n`regime.horizon` is unused here. The program may import numpy/pandas/scip\n... [output truncated: 5660 chars total]",
+        "error": null,
+        "truncated": true
+      },
+      "verbs": [
+        {
+          "verb": "observe",
+          "args": {
+            "source": "registros_clinicos_2019_2023",
+            "n": 800
+          },
+          "cost": 800.0,
+          "budget_remaining": 14200.0,
+          "note": ""
+        }
+      ],
+      "submit_attempts": [],
+      "budget_remaining": 14200.0
+    },
+    {
+      "turn": 2,
+      "reply_text": "Plan: run a compact experimental grid over dose at cohort 0 plus a couple cohort shifts to identify saturation and cohort effects.\n```python\nimport numpy as np, pandas as pd\n\n# experimental design\ndose_grid = [0.0, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0]\ncohorts = [0.0, -1.0, 1.0]\n\nexp_rows = []\nfor c in cohorts:\n    ds = dose_grid if c != 0.0 else dose_grid\n    for d in ds:\n        n = 180 if c == 0.0 else 120\n        df = env.experiment(config={\"dose\": float(d)}, context={\"cohort\": float(c)}, n=n)\n        df = df.copy()\n        df[\"cohort\"] = c\n        exp_rows.append(df)\n\nexp = pd.concat(exp_rows, ignore_index=True)\nprint(\"EXP SHAPE:\", exp.shape)\nprint(exp.head())\n\nsummary = exp.groupby([\"cohort\",\"dose\"]).agg(\n    n=(\"dose\",\"size\"),\n    marker_mean=(\"marker\",\"mean\"),\n    marker_sd=(\"marker\",\"std\"),\n    outcome_mean=(\"outcome\",\"mean\"),\n    outcome_sd=(\"outcome\",\"std\"),\n).reset_index()\nprint(\"\\nSUMMARY:\")\nprint(summary.to_string(index=False))\n\n# inspect simple correlations and whether outcome is approximately linear in marker\nfor c in cohorts:\n    sub = exp[exp[\"cohort\"] == c]\n    print(f\"\\nCohort {c} overall stats\")\n    print(sub[[\"dose\",\"marker\",\"outcome\"]].corr())\n\n# fit a quick saturating curve candidate on cohort 0 means for marker and outcome\nfrom scipy.optimize import curve_fit\n\nco0 = summary[summary.cohort == 0.0].sort_values(\"dose\")\nx = co0[\"dose\"].values\nym = co0[\"marker_mean\"].values\nyo = co0[\"outcome_mean\"].values\n\ndef emax(x, base, emax, ec50):\n    return base + emax * x / (ec50 + x + 1e-12)\n\nfor name, y in [(\"marker\", ym), (\"outcome\", yo)]:\n    try:\n        p0 = [float(y.min()), float(y.max()-y.min()), 2.0]\n        popt, _ = curve_fit(emax, x, y, p0=p0, maxfev=20000)\n        print(f\"\\n{name} emax params:\", popt)\n        print(\"pred:\", np.round(emax(x, *popt), 3))\n        print(\"obs :\", np.round(y, 3))\n    except Exception as e:\n        print(f\"\\n{name} emax fit failed:\", repr(e))\n```",
+      "cell": "import numpy as np, pandas as pd\n\n# experimental design\ndose_grid = [0.0, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0]\ncohorts = [0.0, -1.0, 1.0]\n\nexp_rows = []\nfor c in cohorts:\n    ds = dose_grid if c != 0.0 else dose_grid\n    for d in ds:\n        n = 180 if c == 0.0 else 120\n        df = env.experiment(config={\"dose\": float(d)}, context={\"cohort\": float(c)}, n=n)\n        df = df.copy()\n        df[\"cohort\"] = c\n        exp_rows.append(df)\n\nexp = pd.concat(exp_rows, ignore_index=True)\nprint(\"EXP SHAPE:\", exp.shape)\nprint(exp.head())\n\nsummary = exp.groupby([\"cohort\",\"dose\"]).agg(\n    n=(\"dose\",\"size\"),\n    marker_mean=(\"marker\",\"mean\"),\n    marker_sd=(\"marker\",\"std\"),\n    outcome_mean=(\"outcome\",\"mean\"),\n    outcome_sd=(\"outcome\",\"std\"),\n).reset_index()\nprint(\"\\nSUMMARY:\")\nprint(summary.to_string(index=False))\n\n# inspect simple correlations and whether outcome is approximately linear in marker\nfor c in cohorts:\n    sub = exp[exp[\"cohort\"] == c]\n    print(f\"\\nCohort {c} overall stats\")\n    print(sub[[\"dose\",\"marker\",\"outcome\"]].corr())\n\n# fit a quick saturating curve candidate on cohort 0 means for marker and outcome\nfrom scipy.optimize import curve_fit\n\nco0 = summary[summary.cohort == 0.0].sort_values(\"dose\")\nx = co0[\"dose\"].values\nym = co0[\"marker_mean\"].values\nyo = co0[\"outcome_mean\"].values\n\ndef emax(x, base, emax, ec50):\n    return base + emax * x / (ec50 + x + 1e-12)\n\nfor name, y in [(\"marker\", ym), (\"outcome\", yo)]:\n    try:\n        p0 = [float(y.min()), float(y.max()-y.min()), 2.0]\n        popt, _ = curve_fit(emax, x, y, p0=p0, maxfev=20000)\n        print(f\"\\n{name} emax params:\", popt)\n        print(\"pred:\", np.round(emax(x, *popt), 3))\n        print(\"obs :\", np.round(y, 3))\n    except Exception as e:\n        print(f\"\\n{name} emax fit failed:\", repr(e))",
+      "tokens": {
+        "prompt": 2413,
+        "completion": 591,
+        "reasoning": 0
+      },
+      "cell_result": {
+        "ok": true,
+        "stdout": "EXP SHAPE: (2940, 4)\n   dose    marker   outcome  cohort\n0   0.0  1.136347  1.073206     0.0\n1   0.0  1.939829  1.255208     0.0\n2   0.0  2.099624 -6.841464     0.0\n3   0.0 -2.607758  2.804738     0.0\n4   0.0 -0.193246 -2.447077     0.0\n\nSUMMARY:\n cohort  dose   n  marker_mean  marker_sd  outcome_mean  outcome_sd\n   -1.0   0.0 120    -0.938087   1.702256      1.983976    1.978378\n   -1.0   1.0 120    -1.237002   1.624769      4.277675    2.089649\n   -1.0   2.0 120    -1.002469   1.820558      5.409145    2.192830\n   -1.0   4.0 120    -1.070607   1.778053      7.160156    2.109941\n   -1.0   6.0 120    -0.867412   1.816876      8.101991    2.072357\n   -1.0   8.0 120    -0.878444   1.584845      8.622936    2.016840\n   -1.0  10.0 120    -1.067343   1.814791      8.923320    1.981055\n    0.0   0.0 180     0.148528   1.800462     -0.087122    1.987116\n    0.0   1.0 180     0.015998   1.872612      2.082015    2.000908\n    0.0   2.0 180     0.064926   1.908657      3.354571    2.277071\n    0.0   4.0 180    -0.078486   1.874196      4.988785    2.065857\n    0.0   6.0 180     0.078586   1.840932      5.864487    1.991692\n    0.0   8.0 180    -0.111433   1.726110      6.875854    2.036965\n    0.0  10.0 180     0.031180   1.859879      7.183631    1.976147\n    1.0   0.0 120     0.886504   1.885528     -1.950288    1.913664\n    1.0   1.0 120     0.914610   1.837172     -0.163834    1.968196\n    1.0   2.0 120     0.839192   1.920595      1.095067    2.212506\n    1.0   4.0 120     1.079315   1.703800      3.075786    2.124170\n    1.0   6.0 120     0.990784   1.762152      3.839490    2.216213\n    1.0   8.0 120     1.009983   1.801249      4.806861    2.243651\n    1.0  10.0 120     1.047007   1.635150      5.136421    1.971521\n\nCohort 0.0 overall stats\n             dose    marker   outcome\ndose     1.000000 -0.021068  0.730102\nmarker  -0.021068  1.000000 -0.365037\noutcome  0.730102 -0.365037  1.000000\n\nCohort -1.0 overall stats\n             dose    marker   outcome\ndose     1.000000  0.020059  0.703354\nmarker   0.020059  1.000000 -0.323536\noutcome  0.703354 -0.323536  1.000000\n\nCohort 1.0 overall stats\n             dose    marker   outcome\ndose     1.000000  0.033135  0.727662\nmarker   0.033135  1.000000 -0.324643\noutcome  0.727662 -0.324643  1.000000\n\nmarker emax params: [ 0.14780725 -0.17303848  0.54338503]\npred: [ 0.148  0.036  0.012 -0.005 -0.011 -0.014 -0.016]\nobs : [ 0.149  0.016  0.065 -0.078  0.079 -0.111  0.031]\n\noutcome emax params: [-0.04318931 10.11116081  3.97369516]\npred: [-0.043  1.99   3.342  5.029  6.04   6.712  7.193]\nobs : [-0.087  2.082  3.355  4.989  5.864  6.876  7.184]\n",
+        "error": null,
+        "truncated": false
+      },
+      "verbs": [
+        {
+          "verb": "experiment",
+          "args": {
+            "config": {
+              "dose": 0.0
+            },
+            "context": {
+              "cohort": 0.0
+            },
+            "n": 180
+          },
+          "cost": 460.0,
+          "budget_remaining": 13740.0,
+          "note": ""
+        },
+        {
+          "verb": "experiment",
+          "args": {
+            "config": {
+              "dose": 1.0
+            },
+            "context": {
+              "cohort": 0.0
+            },
+            "n": 180
+          },
+          "cost": 460.0,
+          "budget_remaining": 13280.0,
+          "note": ""
+        },
+        {
+          "verb": "experiment",
+          "args": {
+            "config": {
+              "dose": 2.0
+            },
+            "context": {
+              "cohort": 0.0
+            },
+            "n": 180
+          },
+          "cost": 460.0,
+          "budget_remaining": 12820.0,
+          "note": ""
+        },
+        {
+          "verb": "experiment",
+          "args": {
+            "config": {
+              "dose": 4.0
+            },
+            "context": {
+              "cohort": 0.0
+            },
+            "n": 180
+          },
+          "cost": 460.0,
+          "budget_remaining": 12360.0,
+          "note": ""
+        },
+        {
+          "verb": "experiment",
+          "args": {
+            "config": {
+              "dose": 6.0
+            },
+            "context": {
+              "cohort": 0.0
+            },
+            "n": 180
+          },
+          "cost": 460.0,
+          "budget_remaining": 11900.0,
+          "note": ""
+        },
+        {
+          "verb": "experiment",
+          "args": {
+            "config": {
+              "dose": 8.0
+            },
+            "context": {
+              "cohort": 0.0
+            },
+            "n": 180
+          },
+          "cost": 460.0,
+          "budget_remaining": 11440.0,
+          "note": ""
+        },
+        {
+          "verb": "experiment",
+          "args": {
+            "config": {
+              "dose": 10.0
+            },
+            "context": {
+              "cohort": 0.0
+            },
+            "n": 180
+          },
+          "cost": 460.0,
+          "budget_remaining": 10980.0,
+          "note": ""
+        },
+        {
+          "verb": "experiment",
+          "args": {
+            "config": {
+              "dose": 0.0
+            },
+            "context": {
+              "cohort": -1.0
+            },
+            "n": 120
+          },
+          "cost": 340.0,
+          "budget_remaining": 10640.0,
+          "note": ""
+        },
+        {
+          "verb": "experiment",
+          "args": {
+            "config": {
+              "dose": 1.0
+            },
+            "context": {
+              "cohort": -1.0
+            },
+            "n": 120
+          },
+          "cost": 340.0,
+          "budget_remaining": 10300.0,
+          "note": ""
+        },
+        {
+          "verb": "experiment",
+          "args": {
+            "config": {
+              "dose": 2.0
+            },
+            "context": {
+              "cohort": -1.0
+            },
+            "n": 120
+          },
+          "cost": 340.0,
+          "budget_remaining": 9960.0,
+          "note": ""
+        },
+        {
+          "verb": "experiment",
+          "args": {
+            "config": {
+              "dose": 4.0
+            },
+            "context": {
+              "cohort": -1.0
+            },
+            "n": 120
+          },
+          "cost": 340.0,
+          "budget_remaining": 9620.0,
+          "note": ""
+        },
+        {
+          "verb": "experiment",
+          "args": {
+            "config": {
+              "dose": 6.0
+            },
+            "context": {
+              "cohort": -1.0
+            },
+            "n": 120
+          },
+          "cost": 340.0,
+          "budget_remaining": 9280.0,
+          "note": ""
+        },
+        {
+          "verb": "experiment",
+          "args": {
+            "config": {
+              "dose": 8.0
+            },
+            "context": {
+              "cohort": -1.0
+            },
+            "n": 120
+          },
+          "cost": 340.0,
+          "budget_remaining": 8940.0,
+          "note": ""
+        },
+        {
+          "verb": "experiment",
+          "args": {
+            "config": {
+              "dose": 10.0
+            },
+            "context": {
+              "cohort": -1.0
+            },
+            "n": 120
+          },
+          "cost": 340.0,
+          "budget_remaining": 8600.0,
+          "note": ""
+        },
+        {
+          "verb": "experiment",
+          "args": {
+            "config": {
+              "dose": 0.0
+            },
+            "context": {
+              "cohort": 1.0
+            },
+            "n": 120
+          },
+          "cost": 340.0,
+          "budget_remaining": 8260.0,
+          "note": ""
+        },
+        {
+          "verb": "experiment",
+          "args": {
+            "config": {
+              "dose": 1.0
+            },
+            "context": {
+              "cohort": 1.0
+            },
+            "n": 120
+          },
+          "cost": 340.0,
+          "budget_remaining": 7920.0,
+          "note": ""
+        },
+        {
+          "verb": "experiment",
+          "args": {
+            "config": {
+              "dose": 2.0
+            },
+            "context": {
+              "cohort": 1.0
+            },
+            "n": 120
+          },
+          "cost": 340.0,
+          "budget_remaining": 7580.0,
+          "note": ""
+        },
+        {
+          "verb": "experiment",
+          "args": {
+            "config": {
+              "dose": 4.0
+            },
+            "context": {
+              "cohort": 1.0
+            },
+            "n": 120
+          },
+          "cost": 340.0,
+          "budget_remaining": 7240.0,
+          "note": ""
+        },
+        {
+          "verb": "experiment",
+          "args": {
+            "config": {
+              "dose": 6.0
+            },
+            "context": {
+              "cohort": 1.0
+            },
+            "n": 120
+          },
+          "cost": 340.0,
+          "budget_remaining": 6900.0,
+          "note": ""
+        },
+        {
+          "verb": "experiment",
+          "args": {
+            "config": {
+              "dose": 8.0
+            },
+            "context": {
+              "cohort": 1.0
+            },
+            "n": 120
+          },
+          "cost": 340.0,
+          "budget_remaining": 6560.0,
+          "note": ""
+        },
+        {
+          "verb": "experiment",
+          "args": {
+            "config": {
+              "dose": 10.0
+            },
+            "context": {
+              "cohort": 1.0
+            },
+            "n": 120
+          },
+          "cost": 340.0,
+          "budget_remaining": 6220.0,
+          "note": ""
+        }
+      ],
+      "submit_attempts": [],
+      "budget_remaining": 6220.0
+    },
+    {
+      "turn": 3,
+      "reply_text": "Plan: verify observational dose assignment/natural policy and fit a parsimonious generative model for outcome and marker, then submit.\n```python\nimport numpy as np, pandas as pd\nfrom scipy.optimize import curve_fit\n\n# get more observational data to learn natural dose distribution\nobs2 = env.observe(\"registros_clinicos_2019_2023\", 2000)\nprint(\"OBS2 SHAPE:\", obs2.shape)\nprint(obs2.head())\nprint(\"\\nOBS2 DESCRIBE:\")\nprint(obs2.describe())\n\n# combine observational samples if present\nobs_all = pd.concat([obs.drop(columns=[\"_bin\"], errors=\"ignore\"), obs2], ignore_index=True)\nprint(\"\\nOBS_ALL SHAPE:\", obs_all.shape)\nprint(\"Dose quantiles:\")\nprint(obs_all[\"dose\"].quantile([0,.01,.05,.1,.25,.5,.75,.9,.95,.99,1]).to_string())\n\n# hist for natural policy\nhist_counts, hist_edges = np.histogram(obs_all[\"dose\"].values, bins=np.linspace(0,10,21))\nprint(\"\\nNatural dose histogram counts:\", hist_counts.tolist())\nprint(\"edges:\", np.round(hist_edges,2).tolist())\n\n# fit Beta on scaled dose for natural observational regime\nx = np.clip(obs_all[\"dose\"].values / 10.0, 1e-4, 1-1e-4)\nm, v = x.mean(), x.var()\ntmp = m*(1-m)/max(v,1e-6) - 1\nalpha = max(0.3, m*tmp)\nbeta = max(0.3, (1-m)*tmp)\nprint(\"\\nBeta fit alpha,beta:\", alpha, beta)\n\n# fit cohort effect on outcome means using experimental summary\nsummary = exp.groupby([\"cohort\",\"dose\"]).agg(\n    outcome_mean=(\"outcome\",\"mean\"),\n    outcome_sd=(\"outcome\",\"std\"),\n    marker_mean=(\"marker\",\"mean\"),\n    marker_sd=(\"marker\",\"std\"),\n).reset_index()\n\n# global emax with additive linear cohort effect and constant noise\nd = summary[\"dose\"].values\nc = summary[\"cohort\"].values\ny = summary[\"outcome_mean\"].values\n\ndef out_fun(X, base, emax, ec50, cohort_coef):\n    dose, cohort = X\n    return base + cohort_coef*cohort + emax*dose/(ec50 + dose + 1e-12)\n\np0 = [-0.05, 10.0, 4.0, -2.0]\npopt, _ = curve_fit(out_fun, (d, c), y, p0=p0, maxfev=20000)\nprint(\"\\nOutcome params [base, emax, ec50, cohort_coef]:\", popt)\npred = out_fun((d,c), *popt)\nprint(\"Outcome RMSE on cell means:\", float(np.sqrt(np.mean((pred-y)**2))))\n\n# estimate outcome residual sd pooled from experiments\noutcome_sd = float(exp[\"outcome\"].std())\nprint(\"Outcome overall sd:\", outcome_sd)\n\n# marker model: mean depends on cohort only, essentially no dose effect; noise roughly constant\ncohort_marker = exp.groupby(\"cohort\")[\"marker\"].mean()\ncoef_marker = np.polyfit(cohort_marker.index.values, cohort_marker.values, 1)\nmarker_intercept, marker_cohort_coef = float(coef_marker[1]), float(coef_marker[0])\nmarker_sd = float(exp[\"marker\"].std())\nprint(\"\\nMarker params [intercept, cohort_coef, sd]:\", marker_intercept, marker_cohort_coef, marker_sd)\n\ncode = f'''\nimport numpy as np\nimport pandas as pd\n\nALPHA = {alpha!r}\nBETA = {beta!r}\nOUT_BASE = {float(popt[0])!r}\nOUT_EMAX = {float(popt[1])!r}\nOUT_EC50 = {float(popt[2])!r}\nOUT_COHORT = {float(popt[3])!r}\nOUT_SD = {float(exp[\"outcome\"].std(ddof=0))!r}\nMARK_INT = {marker_intercept!r}\nMARK_COHORT = {marker_cohort_coef!r}\nMARK_SD = {float(exp[\"marker\"].std(ddof=0))!r}\n\ndef model(regime, n, seed):\n    rng = np.random.default_rng(seed)\n    cohort = float(regime.context.get(\"cohort\", 0.0))\n    if \"dose\" in regime.config:\n        dose = np.full(n, float(regime.config[\"dose\"]), dtype=float)\n    else:\n        dose = 10.0 * rng.beta(ALPHA, BETA, size=n)\n        dose = np.clip(dose, 0.0, 10.0)\n    marker = MARK_INT + MARK_COHORT * cohort + rng.normal(0.0, MARK_SD, size=n)\n    mu = OUT_BASE + OUT_COHORT * cohort + OUT_EMAX * dose / (OUT_EC50 + dose + 1e-12)\n    outcome = mu + rng.normal(0.0, OUT_SD, size=n)\n    return pd.DataFrame({{\n        \"dose\": dose.astype(float),\n        \"marker\": marker.astype(float),\n        \"outcome\": outcome.astype(float),\n    }})\n'''\nres = env.submit(code)\nprint(\"\\nSUBMIT ACCEPTED:\", res.accepted)\nprint(\"ERROR:\", getattr(res, \"error\", None))\n```",
+      "cell": "import numpy as np, pandas as pd\nfrom scipy.optimize import curve_fit\n\n# get more observational data to learn natural dose distribution\nobs2 = env.observe(\"registros_clinicos_2019_2023\", 2000)\nprint(\"OBS2 SHAPE:\", obs2.shape)\nprint(obs2.head())\nprint(\"\\nOBS2 DESCRIBE:\")\nprint(obs2.describe())\n\n# combine observational samples if present\nobs_all = pd.concat([obs.drop(columns=[\"_bin\"], errors=\"ignore\"), obs2], ignore_index=True)\nprint(\"\\nOBS_ALL SHAPE:\", obs_all.shape)\nprint(\"Dose quantiles:\")\nprint(obs_all[\"dose\"].quantile([0,.01,.05,.1,.25,.5,.75,.9,.95,.99,1]).to_string())\n\n# hist for natural policy\nhist_counts, hist_edges = np.histogram(obs_all[\"dose\"].values, bins=np.linspace(0,10,21))\nprint(\"\\nNatural dose histogram counts:\", hist_counts.tolist())\nprint(\"edges:\", np.round(hist_edges,2).tolist())\n\n# fit Beta on scaled dose for natural observational regime\nx = np.clip(obs_all[\"dose\"].values / 10.0, 1e-4, 1-1e-4)\nm, v = x.mean(), x.var()\ntmp = m*(1-m)/max(v,1e-6) - 1\nalpha = max(0.3, m*tmp)\nbeta = max(0.3, (1-m)*tmp)\nprint(\"\\nBeta fit alpha,beta:\", alpha, beta)\n\n# fit cohort effect on outcome means using experimental summary\nsummary = exp.groupby([\"cohort\",\"dose\"]).agg(\n    outcome_mean=(\"outcome\",\"mean\"),\n    outcome_sd=(\"outcome\",\"std\"),\n    marker_mean=(\"marker\",\"mean\"),\n    marker_sd=(\"marker\",\"std\"),\n).reset_index()\n\n# global emax with additive linear cohort effect and constant noise\nd = summary[\"dose\"].values\nc = summary[\"cohort\"].values\ny = summary[\"outcome_mean\"].values\n\ndef out_fun(X, base, emax, ec50, cohort_coef):\n    dose, cohort = X\n    return base + cohort_coef*cohort + emax*dose/(ec50 + dose + 1e-12)\n\np0 = [-0.05, 10.0, 4.0, -2.0]\npopt, _ = curve_fit(out_fun, (d, c), y, p0=p0, maxfev=20000)\nprint(\"\\nOutcome params [base, emax, ec50, cohort_coef]:\", popt)\npred = out_fun((d,c), *popt)\nprint(\"Outcome RMSE on cell means:\", float(np.sqrt(np.mean((pred-y)**2))))\n\n# estimate outcome residual sd pooled from experiments\noutcome_sd = float(exp[\"outcome\"].std())\nprint(\"Outcome overall sd:\", outcome_sd)\n\n# marker model: mean depends on cohort only, essentially no dose effect; noise roughly constant\ncohort_marker = exp.groupby(\"cohort\")[\"marker\"].mean()\ncoef_marker = np.polyfit(cohort_marker.index.values, cohort_marker.values, 1)\nmarker_intercept, marker_cohort_coef = float(coef_marker[1]), float(coef_marker[0])\nmarker_sd = float(exp[\"marker\"].std())\nprint(\"\\nMarker params [intercept, cohort_coef, sd]:\", marker_intercept, marker_cohort_coef, marker_sd)\n\ncode = f'''\nimport numpy as np\nimport pandas as pd\n\nALPHA = {alpha!r}\nBETA = {beta!r}\nOUT_BASE = {float(popt[0])!r}\nOUT_EMAX = {float(popt[1])!r}\nOUT_EC50 = {float(popt[2])!r}\nOUT_COHORT = {float(popt[3])!r}\nOUT_SD = {float(exp[\"outcome\"].std(ddof=0))!r}\nMARK_INT = {marker_intercept!r}\nMARK_COHORT = {marker_cohort_coef!r}\nMARK_SD = {float(exp[\"marker\"].std(ddof=0))!r}\n\ndef model(regime, n, seed):\n    rng = np.random.default_rng(seed)\n    cohort = float(regime.context.get(\"cohort\", 0.0))\n    if \"dose\" in regime.config:\n        dose = np.full(n, float(regime.config[\"dose\"]), dtype=float)\n    else:\n        dose = 10.0 * rng.beta(ALPHA, BETA, size=n)\n        dose = np.clip(dose, 0.0, 10.0)\n    marker = MARK_INT + MARK_COHORT * cohort + rng.normal(0.0, MARK_SD, size=n)\n    mu = OUT_BASE + OUT_COHORT * cohort + OUT_EMAX * dose / (OUT_EC50 + dose + 1e-12)\n    outcome = mu + rng.normal(0.0, OUT_SD, size=n)\n    return pd.DataFrame({{\n        \"dose\": dose.astype(float),\n        \"marker\": marker.astype(float),\n        \"outcome\": outcome.astype(float),\n    }})\n'''\nres = env.submit(code)\nprint(\"\\nSUBMIT ACCEPTED:\", res.accepted)\nprint(\"ERROR:\", getattr(res, \"error\", None))",
+      "tokens": {
+        "prompt": 4393,
+        "completion": 1151,
+        "reasoning": 0
+      },
+      "cell_result": {
+        "ok": true,
+        "stdout": "OBS2 SHAPE: (2000, 3)\n       dose    marker   outcome\n0  0.454549 -2.066213  3.103204\n1  3.071512  2.113580  3.710912\n2  1.189557  0.539983  1.649502\n3  1.096265 -2.730605  5.045885\n4  3.296170  1.532996  1.342720\n\nOBS2 DESCRIBE:\n              dose       marker      outcome\ncount  2000.000000  2000.000000  2000.000000\nmean      2.120796    -0.021554     2.979992\nstd       1.599342     1.830879     1.299860\nmin       0.000000    -6.093887    -0.798284\n25%       0.811928    -1.213717     2.084220\n50%       1.965288     0.013598     2.982310\n75%       3.212535     1.161751     3.859600\nmax       7.844761     6.092868     7.846335\n\nOBS_ALL SHAPE: (2800, 3)\nDose quantiles:\n0.00    0.000000\n0.01    0.000000\n0.05    0.000000\n0.10    0.000000\n0.25    0.814266\n0.50    2.002051\n0.75    3.212847\n0.90    4.312192\n0.95    5.028228\n0.99    6.313899\n1.00    8.775658\n\nNatural dose histogram counts: [547, 252, 309, 290, 314, 281, 230, 195, 147, 87, 73, 33, 19, 15, 6, 1, 0, 1, 0, 0]\nedges: [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0]\n\nBeta fit alpha,beta: 1.1766394529040167 4.335523549200658\n\nOutcome params [base, emax, ec50, cohort_coef]: [-9.88643545e-03  9.92684841e+00  3.89568017e+00 -2.04569262e+00]\nOutcome RMSE on cell means: 0.12935963453484323\nOutcome overall sd: 3.555481188831944\n\nMarker params [intercept, cohort_coef, sd]: -0.006888932236576019 0.9877685363748412 1.944375793886999\n\nSUBMIT ACCEPTED: True\nERROR: None\n",
+        "error": null,
+        "truncated": false
+      },
+      "verbs": [
+        {
+          "verb": "observe",
+          "args": {
+            "source": "registros_clinicos_2019_2023",
+            "n": 2000
+          },
+          "cost": 2000.0,
+          "budget_remaining": 4220.0,
+          "note": ""
+        },
+        {
+          "verb": "submit",
+          "args": {
+            "accepted": true
+          },
+          "cost": 0.0,
+          "budget_remaining": 4220.0,
+          "note": "R=0.887 (server-side)"
+        }
+      ],
+      "submit_attempts": [
+        {
+          "verb": "submit",
+          "args": {
+            "accepted": true
+          },
+          "cost": 0.0,
+          "budget_remaining": 4220.0,
+          "note": "R=0.887 (server-side)"
+        }
+      ],
+      "budget_remaining": 4220.0
+    }
+  ],
+  "wall_seconds": 34.1
+}

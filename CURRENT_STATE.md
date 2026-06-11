@@ -5,22 +5,24 @@
 
 ## Qué corre hoy
 
-**Slice 1 (reward path) completo y verde** + **Slice 2 C1 (smoke LLM) verde**.
-`pip install -e .[dev,agent]` + `pytest` → **53 verdes, 1 skip** (test LLM opt-in;
+**Slice 1 (reward path) y Slice 2 (harness interactivo, C1+C2+C3) completos y verdes.**
+`pip install -e .[dev,agent]` + `pytest` → **69 verdes, 1 skip** (test LLM opt-in;
 correr con `RUN_LLM_TESTS=1`). Python 3.13.
 
-- `wager/contracts/` — contratos Pydantic v2 (world, case, reports).
+- `wager/contracts/` — contratos Pydantic v2 (world, case, episode, reports).
 - `wager/reward/` — **zona cero-LLM** (allowlist de imports en CI + no importa
   `wager.agent`/`wager.harness`): `seeds`, `distance`, `mdl`, `sandbox`, `scorer`
-  (R, D_MAX), `ladder` (L1), `variance` (L2).
+  (R, D_MAX), `ladder` (L1), `variance` (L2), `episode_score` (R de submission).
 - `wager/factory/` — `case_loader`, `world_lint` (lado fábrica; LLM permitido acá).
 - `wager/agent/` — **lado solver (LLM)**: `llm_client` (Foundry v1 multi-turn),
-  `cells` (extractor de celdas). Nunca importado por `wager.reward`.
-- `wager/harness/` — `kernel` (kernel Python persistente), `c1_env` (env mínimo
-  describe/observe + ledger). Verbos completos + opacidad en C3.
-- `cases/dummy_dose_v0/` — `world.py`, `battery.json`, `meta.json`, `ladder/`
-  (6 fixtures), `brief.md` (cara pública, ASCII), `make_ladder_fixtures.py`,
-  `run_slice.py`, `diagnose.py`, `ablate_m.py`, `c1_smoke.py`, `traces/`.
+  `cells`. Nunca importado por `wager.reward`.
+- `wager/harness/` — `world_server` (autoridad del episodio: verbos + ledger +
+  humo + scoring), `kernel_proc` (kernel en proceso separado + env proxy data-only),
+  `episode` (loop LLM + guardas + trace), `env`/`case_episode`, `kernel`/`c1_env` (C1).
+- `cases/dummy_dose_v0/` — `world.py`, `battery.json`, `meta.json` (+ episode),
+  `ladder/`, `brief.md` (cara pública, ASCII), `solvers.py`, runners
+  (`run_slice`, `c1_smoke`, `c2_pair`, `e0_episode`, `e05_episodes`,
+  `make_ladder_fixtures`, `ablate_m`, `diagnose`), `traces/` (E0/E0.5).
 
 ### Entregables medidos (`python cases/dummy_dose_v0/run_slice.py`, defaults v0 K=16 n=1000 m=2)
 
@@ -45,19 +47,21 @@ orden total; se diagnosticó per-ítem (`diagnose.py`) antes de tocar nada:
    ahora contra el rango de normalización S_verdad−S_ingenuo (unidades de R).
 Fixtures de la escalera intactos.
 
-## Qué falta (Slice 2 y más allá)
+## Resultados del Slice 2 (C2 + C3, Decision Log v0.15)
 
-1. **C2 — par scripteado** (no gatea C3): `solver_naive` (~R≈0) y `solver_canonical`
-   (>0.7) como trayectorias completas y fixtures permanentes. Necesita los verbos
-   `experiment`/`submit` + integración con el scorer del Slice 1.
-2. **C3 — E0 + E0.5**: verbos completos, handle opaco v0 (proceso separado, IPC
-   solo-datos), validación de humo en submit, brief completo (superficie de control
-   + neutralización del nombre de contexto `severity_mean`), red-team de
-   introspección (`dir(env)`/`__dict__`/`gc`). E0 = 1 episodio gpt-5.4; E0.5 = 3–5
-   episodios, 2 modelos. Observación de jugabilidad, no eval.
-3. Derivación automática de rivales (§5) y batería (§6) — al existir, **expira la
+- **C2**: naive R=0.044 vs canonical R=1.000 por el juego real (investigar gana).
+- **E0** (gpt-5.4): R=0.895, 4 turnos, 17.6k tokens — jugable; inventó un latente.
+- **E0.5**: gpt-5.4 R∈{0.887,0.958}; DeepSeek-V3.2 R=0.000 (regresó sin latente →
+  brecha de teoría visible). Cross-family pagó.
+- Fricciones resueltas: no-ASCII en briefs; `hasattr` faltaba en el sandbox.
+
+## Qué falta
+
+1. Derivación automática de rivales (§5) y batería (§6) — al existir, **expira la
    excepción de bootstrap** (batería, escalera L1 y brief a mano).
-4. E1: ~20 mundos a mano en 2 familias, ≥5 suites, certificados (§7) (ARCHITECTURE §12).
+2. E1: ~20 mundos a mano en 2 familias, ≥5 suites, certificados (§7) (ARCHITECTURE §12).
+3. Hardening del handle opaco (jaula de filesystem, gc/closure) — gaps en `REDTEAM.md`.
+4. Mejor extractor de firmas del trace (el keyword-suspicion v0 sub-detecta).
 
 ## Deuda / pendientes
 

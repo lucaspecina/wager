@@ -17,7 +17,7 @@ from wager.factory.case_loader import (
 from wager.harness.world_server import ScoringArtifacts, WorldServer
 
 
-def build_world_server(case_dir: str | Path) -> WorldServer:
+def build_world_server(case_dir: str | Path, seed_offset: int = 0) -> WorldServer:
     case_dir = Path(case_dir)
     meta = load_meta(case_dir)
     if meta.episode is None:
@@ -38,4 +38,6 @@ def build_world_server(case_dir: str | Path) -> WorldServer:
         config=meta.episode,
         scoring=scoring,
         control_surface=meta.episode.control_surface,
+        case_id=meta.case_id,
+        seed_offset=seed_offset,
     )

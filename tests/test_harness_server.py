@@ -69,3 +69,17 @@ def test_submit_truth_is_accepted_and_scores_high(server):
     assert res.accepted is True
     assert server.terminal
     assert server.result["R"] == pytest.approx(1.0, abs=1e-6)  # world.py -> R=1
+
+
+def test_submit_with_hasattr_is_accepted(server):
+    # regression for the E0 friction: hasattr is a safe builtin submissions use
+    code = (
+        "import numpy as np, pandas as pd\n"
+        "def model(regime, n, seed):\n"
+        " rng = np.random.default_rng(seed)\n"
+        " c = regime.context.get('cohort', 0.0) if hasattr(regime, 'context') else 0.0\n"
+        " dose = np.full(n, float(regime.config.get('dose', 3.0)))\n"
+        " return pd.DataFrame({'dose': dose, 'marker': rng.normal(c, 1, n), 'outcome': rng.normal(0, 1, n)})\n"
+    )
+    res = server.submit(code)
+    assert res.accepted is True

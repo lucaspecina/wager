@@ -36,7 +36,34 @@ Nunca un retorno exitoso, nunca lectura de `world.py` / `battery.json` / red.
 | 14 | NaN/inf en salida | valores no finitos | validación parent-side | test ✓ |
 | 15 | crash arbitrario | `raise` | cap en D_MAX por ítem (1.5× null) | test ✓ |
 
-## Gaps conocidos (NO cubiertos en v0 — declarados)
+## Kernel opaco del episodio (C3 — `tests/test_opaque_kernel.py`)
+
+Threat model: el agente (LLM) escribe celdas que corren en un **proceso separado**;
+el mundo (WorldServer, `world.py`, batería) vive en el proceso principal. El agente
+solo lo alcanza por verbos que cruzan **datos** (dicts/DataFrames), nunca objetos
+ni callables. Invariante: todo intento de alcanzar el mundo por fuera de los verbos
+**falla cerrado**.
+
+| # | Escape | Vector | Defensa | Estado |
+|---|--------|--------|---------|--------|
+| 16 | introspección de `env` | `env.__dict__`, `dir(env)` | el pipe vive en un closure, no en un atributo → `__dict__` vacío | test ✓ |
+| 17 | leer `world.py`/`battery.json` | `open('world.py')` etc. | cwd del subproceso aislado (mkdtemp) → no resuelve | test ✓ |
+| 18 | callable en `design` | `experiment(config={'dose': lambda…})` | el proxy fuerza `json.dumps` de los args → falla cerrado | test ✓ |
+| 19 | valor no-data en `design` | `experiment(config={'dose':'huge'})` | validación server-side `ExperimentDesign` (extra=forbid, float) → error como dato | test ✓ |
+| 20 | overspend vía proxy | `observe` masivo | ledger server-side → `BudgetError` como dato | test ✓ |
+| 21 | encoding (no-ASCII) | texto unicode por el subproceso | round-trip utf-8 verificado (em-dash/bullet/accent/arrow) | test ✓ |
+
+## Gaps conocidos del kernel opaco (NO cubiertos en v0 — declarados)
+
+- **Lectura por path absoluto**: el cwd aislado frena reads relativos, pero un path
+  absoluto conocido NO está bloqueado (el agente no conoce el path; mitigación débil).
+- **Alcanzar el pipe por gc/closure**: `gc.get_referents` sobre el closure de los
+  métodos de `env` podría llegar a la `Connection`. Aun así, el peor caso es
+  re-emitir verbos (budget-limitado, sin info extra); los artefactos secretos están
+  en OTRO proceso, no en el del agente. Endurecimiento real (jaula de filesystem +
+  seccomp + auth del canal) → harness RPC completo (ARCHITECTURE §14.2).
+
+## Gaps conocidos del sandbox de scoring (NO cubiertos en v0 — declarados)
 
 - **Builtins por C-extension**: numpy/scipy se pre-importan con builtins
   completos antes del lockdown; un atacante motivado podría buscar gadgets ahí.

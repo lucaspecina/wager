@@ -21,28 +21,49 @@ Sources you can query (each debits budget):
 - `registros_clinicos_2019_2023` -- routine observational records: one row per past
   case, with its administered dose and measured outcome. Cost: 1 unit per row.
 
+Control surface (what an experiment can set):
+
+- `dose` -- settable in [0, 10] mg.
+- `cohort` -- a population baseline level; a property of who arrives, which an
+  experiment can target (e.g. `context={"cohort": 1.0}`), not something you set
+  per patient. The observational source is `cohort = 0`.
+
 Budget: abstract units, shown by `env.describe()`. `describe` is free; `observe`
-debits.
+and `experiment` debit.
 
 ## Interaction
 
 You write Python cells. A persistent kernel runs them; variables persist across
-cells. **Print whatever you want to see** -- only stdout is returned to you. An
-object `env` is available:
+cells. **Print whatever you want to see** -- only stdout is returned to you
+(for big DataFrames, print `.head()` and `.shape`). `env` provides:
 
-- `env.describe()` -- free; returns this sheet as a dict (schema, sources, budget).
-- `env.observe(source, n)` -- returns a pandas DataFrame of `n` rows; debits cost.
+- `env.describe()` -- free; returns this sheet as a dict.
+- `env.observe(source, n)` -- DataFrame of `n` observational rows; debits cost/row.
+- `env.experiment(config=..., context=..., n=...)` -- runs a fresh trial under a
+  dose/population you choose and returns a DataFrame; debits a fixed cost + cost/row.
+  Example: `env.experiment(config={"dose": 6.0}, context={"cohort": 0.0}, n=400)`.
+- `env.submit(code)` -- deliver your model (see below); returns a result with
+  `.accepted` and `.error`.
 
 `numpy`, `pandas`, `scipy`, `sklearn` are importable. No network, no file access.
 
-## Delivery contract (for later)
+## Delivery contract
 
-When ready you will deliver a Python program defining
+Deliver a Python program (as a string) defining
 
     def model(regime, n, seed) -> pandas.DataFrame   # columns exactly: dose, marker, outcome
 
-where `regime.config` may fix `dose` (e.g. `{"dose": 4.0}`) -- then your model must
+`regime` always has `.config` (a dict, possibly empty), `.context` (a dict,
+possibly empty) and `.horizon` -- use them directly, no defensive checks needed.
+`regime.config` may fix `dose` (e.g. `{"dose": 4.0}`) -- then your model must
 generate outcomes for that fixed dose -- or be empty (generate the natural
-observational population). You will be scored by comparing your model's output
-against the real system under **undisclosed dose settings**, weighted toward the
-dose-policy decisions above.
+observational population). `regime.context` may carry `{"cohort": <level>}`.
+`regime.horizon` is unused here. The program may import numpy/pandas/scipy/sklearn,
+runs in a sandbox with a per-call time limit, and may also be an ensemble
+`[(weight, code), ...]` to express uncertainty across rival models.
+
+Call `env.submit(code)` when ready. A quick validation checks the columns, types
+and row count on a few public settings and returns an actionable error if
+something is off (the episode stays open so you can fix and resubmit). Your model
+is then scored by comparing its output against the real system under **undisclosed
+dose settings and populations**, weighted toward the dose-policy decisions above.

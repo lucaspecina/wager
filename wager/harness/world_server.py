@@ -61,6 +61,8 @@ class WorldServer:
     config: EpisodeConfig
     scoring: ScoringArtifacts
     control_surface: dict = field(default_factory=dict)
+    case_id: str = ""
+    seed_offset: int = 0  # shifts observe/experiment draws across episodes (E0.5)
 
     def __post_init__(self) -> None:
         self._spent = 0.0
@@ -83,7 +85,7 @@ class WorldServer:
 
     def _next_seed(self, base: int) -> int:
         self._seq += 1
-        return base + self._seq
+        return base + self.seed_offset * 100_000 + self._seq
 
     # --- verbs ---------------------------------------------------------
     def describe(self) -> dict:

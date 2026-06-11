@@ -61,6 +61,7 @@ _FORBIDDEN_NAMES = {
 _SAFE_BUILTIN_NAMES = [
     "abs", "all", "any", "bool", "bytes", "callable", "complex", "dict",
     "divmod", "enumerate", "filter", "float", "format", "frozenset", "hash",
+    "hasattr",  # safe (returns bool); submissions duck-type the regime (E0 friction)
     "int", "isinstance", "issubclass", "iter", "len", "list", "map", "max",
     "min", "next", "object", "pow", "print", "range", "repr", "reversed",
     "round", "set", "slice", "sorted", "str", "sum", "tuple", "zip",
