@@ -11,8 +11,14 @@ import hashlib
 
 
 def _hash_to_seed(tag: str) -> int:
+    # 32-bit so the seed is accepted by BOTH numpy RNG APIs: the modern
+    # np.random.default_rng(seed) (any int) AND the legacy np.random.seed(seed)
+    # which requires [0, 2**32 - 1]. A 64-bit seed silently crashed legacy-API
+    # submissions on every battery item (E0.5 DeepSeek diagnostic, Decision Log
+    # v0.16) -- an instrument artifact, not a skill gap. The instrument must be
+    # agnostic to a submission's legitimate RNG choice.
     digest = hashlib.sha256(tag.encode("utf-8")).digest()
-    return int.from_bytes(digest[:8], "big")
+    return int.from_bytes(digest[:4], "big")
 
 
 def derive_seed(seed_world: int, rep: int) -> int:

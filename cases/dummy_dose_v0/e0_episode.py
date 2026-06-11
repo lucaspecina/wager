@@ -42,7 +42,8 @@ def main():
     print(f"E0 -- {result['model']} on {result['case_id']} (seed_offset={seed_offset})")
     print("=" * 64)
     print(f"  accepted   : {result['accepted']}  (abort_reason={result['abort_reason']})")
-    print(f"  R          : {result['R']}")
+    R = result["R"]
+    print(f"  R          : {R:.3f} (R_uncl={result['R_unclipped']:+.3f})" if R is not None else "  R          : None")
     print(f"  turns      : {result['turns']}")
     print(f"  budget     : spent {result['budget_spent']:.0f} / {result['budget_total']:.0f}")
     print(f"  tokens     : total {result['tokens']['total']} "
@@ -50,9 +51,9 @@ def main():
           f"reasoning {result['tokens']['reasoning']})")
     print(f"  wall       : {result['wall_seconds']}s")
     sig = result["signal"]
-    print(f"  signal     : first_experiment_turn={sig['first_experiment_turn']} "
-          f"first_suspicion_turn={sig['first_suspicion_turn']} "
-          f"experiment_after_suspicion={sig['experiment_after_suspicion']}")
+    print(f"  signal(v0.1): attribution_before_experiment={sig['attribution_before_experiment']} "
+          f"(1st_attribution_turn={sig['first_attribution_turn']}, "
+          f"1st_experiment_turn={sig['first_experiment_turn']})")
     n_failed = sum(len([s for s in t.get("submit_attempts", []) if not s["args"].get("accepted")])
                    for t in result["trace"])
     print(f"  submits    : {sum(len(t.get('submit_attempts', [])) for t in result['trace'])} attempts "

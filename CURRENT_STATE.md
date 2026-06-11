@@ -47,13 +47,19 @@ orden total; se diagnosticó per-ítem (`diagnose.py`) antes de tocar nada:
    ahora contra el rango de normalización S_verdad−S_ingenuo (unidades de R).
 Fixtures de la escalera intactos.
 
-## Resultados del Slice 2 (C2 + C3, Decision Log v0.15)
+## Resultados del Slice 2 (C2 + C3, Decision Log v0.15–v0.16)
 
 - **C2**: naive R=0.044 vs canonical R=1.000 por el juego real (investigar gana).
-- **E0** (gpt-5.4): R=0.895, 4 turnos, 17.6k tokens — jugable; inventó un latente.
-- **E0.5**: gpt-5.4 R∈{0.887,0.958}; DeepSeek-V3.2 R=0.000 (regresó sin latente →
-  brecha de teoría visible). Cross-family pagó.
-- Fricciones resueltas: no-ASCII en briefs; `hasattr` faltaba en el sandbox.
+- **E0** (gpt-5.4): R=0.895, 4 turnos — jugable; 1 submit falló humo y se corrigió.
+- **E0.5 (corregido, seeds arreglados)**: gpt-5.4 R∈{0.000, 0.960}, DeepSeek-V3.2
+  R∈{0.915, 0.919}. Todos honestos, 0 crashes. Firma conductual v0.1
+  (attribution_before_experiment) = True en los 4.
+- **RETRACTADO (v0.16)**: el "DeepSeek R=0 = brecha de teoría" de v0.15 era un
+  **artefacto de rango de seed** (legacy `np.random.seed` rechaza ≥2³²;
+  `derive_seed` daba 64 bits → 16/16 crashes → D_MAX → R=0). Fix: seeds 32-bit +
+  smoke reforzado. R real de DeepSeek ≈0.98. El dummy NO muestra brecha de teoría
+  (un modelo sin latente saca ~0.92). Reportar SIEMPRE R_uncl (clips≠mediciones).
+- Fricciones resueltas: no-ASCII en briefs; `hasattr` faltaba; seeds 64-bit.
 
 ## Qué falta
 

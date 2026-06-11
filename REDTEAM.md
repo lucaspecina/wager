@@ -63,6 +63,18 @@ ni callables. Invariante: todo intento de alcanzar el mundo por fuera de los ver
   en OTRO proceso, no en el del agente. Endurecimiento real (jaula de filesystem +
   seccomp + auth del canal) → harness RPC completo (ARCHITECTURE §14.2).
 
+## Integridad del instrumento (no es escape, es equidad — Decision Log v0.16)
+
+Un crash silencioso es indistinguible de "honestamente malo": una submission que
+crashea en la batería cae a D_MAX en cada ítem → R=0, sin señal de la causa. Si la
+causa es una elección legítima del modelo (p.ej. la API legacy `np.random.seed`,
+que rechaza seeds ≥ 2³²), el instrumento penaliza el RNG, no el juicio (primo del
+ataque #17). Defensas: (a) `derive_seed` en [0, 2³²-1] (agnóstico a la API de RNG);
+(b) smoke con regímenes diversos + seeds representativos para cazar el crash en el
+submit con error accionable, no en silencio; (c) **detector**: el breakdown per-ítem
+(`diagnose_submission.py`) distingue D_MAX-por-crash de distancias honestas — uso
+obligatorio antes de concluir nada sobre un R=0/clipeado.
+
 ## Gaps conocidos del sandbox de scoring (NO cubiertos en v0 — declarados)
 
 - **Builtins por C-extension**: numpy/scipy se pre-importan con builtins

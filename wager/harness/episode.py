@@ -39,10 +39,23 @@ _SUSPICION = (
     "do(dose", "do-operator", "not causal", "reverse caus",
 )
 
+# v0.1 BEHAVIORAL signature (Decision Log v0.16): attribution analysis is what the
+# CODE does, not what the prose says (the lexical detector gave None in 4/5). These
+# are conditioning/attribution operations on data: stratification or regression.
+_ATTRIBUTION_OPS = (
+    "groupby", "qcut", ".cut(", "pd.cut", ".corr(", "corrcoef", "np.cov",
+    "polyfit", "lstsq", "ols(", "smf.", "stratif", "residual", "partial",
+)
+
 
 def _suspicion_in(text: str) -> bool:
     low = text.lower()
     return any(k in low for k in _SUSPICION)
+
+
+def _has_attribution(code: str) -> bool:
+    low = code.lower()
+    return any(op in low for op in _ATTRIBUTION_OPS)
 
 
 def run_episode(
@@ -64,6 +77,7 @@ def run_episode(
     trace: list[dict] = []
     first_experiment_turn: int | None = None
     first_suspicion_turn: int | None = None
+    first_attribution_turn: int | None = None
     abort_reason = "submitted"
 
     with KernelClient(server, cell_timeout_s=cell_timeout_s) as kernel:
@@ -85,6 +99,9 @@ def run_episode(
                     "reasoning": reply.reasoning_tokens,
                 },
             }
+
+            if cell is not None and first_attribution_turn is None and _has_attribution(cell):
+                first_attribution_turn = turn_idx
 
             if cell is None:
                 rec["cell_result"] = {"ok": False, "stdout": "", "error": "no ```python cell in reply"}
@@ -134,6 +151,7 @@ def run_episode(
         "accepted": server.terminal,
         "R": res.get("R"),
         "R_unclipped": res.get("R_unclipped"),
+        "submission_code": res.get("code"),  # the accepted submission, for post-hoc diagnostics
         "abort_reason": abort_reason,
         "turns": len(trace),
         "budget_total": server.config.budget,
@@ -145,14 +163,17 @@ def run_episode(
             "total": chat.usage.total_tokens,
         },
         "signal": {
+            # v0.1 BEHAVIORAL (Decision Log v0.16): did attribution analysis
+            # (stratification/regression on data) happen BEFORE paying for the
+            # first experiment? -- hypothesis-before-spend, read from the CODE.
             "first_experiment_turn": first_experiment_turn,
-            "first_suspicion_turn": first_suspicion_turn,
-            # heuristic embryo of E1/E2 signatures: did the experiment follow a
-            # voiced suspicion (hypothesis->experiment) or precede it?
-            "experiment_after_suspicion": (
-                None if first_experiment_turn is None or first_suspicion_turn is None
-                else first_experiment_turn >= first_suspicion_turn
+            "first_attribution_turn": first_attribution_turn,
+            "attribution_before_experiment": (
+                first_attribution_turn is not None
+                and (first_experiment_turn is None or first_attribution_turn <= first_experiment_turn)
             ),
+            # v0 LEXICAL (kept for comparison; known weak -- gave None in 4/5):
+            "first_suspicion_turn_lexical": first_suspicion_turn,
         },
         "trace": trace,
     }

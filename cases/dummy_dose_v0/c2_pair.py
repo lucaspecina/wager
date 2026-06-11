@@ -38,7 +38,7 @@ def main():
             print(f"  {ev.verb:<11s} cost={ev.cost:7.1f}  budget_left={ev.budget_remaining:8.1f}  "
                   f"{ev.args}{extra}")
         if res:
-            print(f"  -> R = {res['R']:.3f}  (raw={res['raw_score']:.4f}, "
+            print(f"  -> R = {res['R']:.3f}  (R_uncl={res['R_unclipped']:+.3f}, raw={res['raw_score']:.4f}, "
                   f"S_truth={res['s_truth']:.4f}, S_naive={res['s_naive']:.4f})")
         else:
             print("  -> no submission accepted")

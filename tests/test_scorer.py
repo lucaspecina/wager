@@ -18,6 +18,39 @@ def test_derive_seed_never_equals_world_seed():
             assert derive_seed(sw, j) != sw
 
 
+def test_derived_seeds_fit_legacy_numpy_range():
+    # Decision Log v0.16: seeds must be in [0, 2**32-1] so they work with BOTH
+    # np.random.default_rng(seed) AND the legacy np.random.seed(seed). A 64-bit
+    # seed silently crashed legacy-API submissions on every battery item.
+    from wager.reward.seeds import derive_null_seed, derive_world_seed
+
+    for sw in (0, 11001, 2**31, 2**32 - 1):
+        for j in range(6):
+            assert 0 <= derive_seed(sw, j) < 2**32
+    assert 0 <= derive_null_seed(11001) < 2**32
+    assert 0 <= derive_world_seed(11001, 0, 1) < 2**32
+
+
+def test_legacy_numpy_rng_submission_does_not_crash(world_sample, battery, meta):
+    # Regression for the E0.5 DeepSeek artifact: a submission using the legacy
+    # np.random.seed(seed) API must score WITHOUT crashing on the battery.
+    from wager.contracts import Battery
+
+    code = (
+        "import numpy as np, pandas as pd\n"
+        "def model(regime, n, seed):\n"
+        " np.random.seed(seed)\n"  # legacy API: requires seed < 2**32
+        " dose = np.full(n, float(regime.config.get('dose', 3.0)))\n"
+        " return pd.DataFrame({'dose': dose, 'marker': np.random.normal(0, 1, n),\n"
+        "                      'outcome': np.random.normal(0, 1, n)})\n"
+    )
+    small = Battery(items=list(battery.items[:5]))
+    params = ScoringParams(lambda_mdl=0.0, n_samples=300, m_reps=2)
+    ws = WorldSide(world_sample, small, meta.column_names, params.n_samples)
+    rep = score_submission(code, ws, params)
+    assert all(it.sandbox_errors == 0 for it in rep.items), "legacy-RNG submission crashed (seed range)"
+
+
 def test_energy_distance_zero_for_identical_samples():
     x = np.random.default_rng(0).normal(size=(200, 3))
     assert energy_distance(x, x) == pytest.approx(0.0, abs=1e-9)

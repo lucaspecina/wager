@@ -45,7 +45,7 @@
     ]
   },
   "scoring": {
-    "lambda_mdl": 0.00010219626758261836,
+    "lambda_mdl": 0.00010128773858650133,
     "lambda_provisional": true,
     "n_samples": 1000,
     "m_reps": 2,
@@ -57,18 +57,78 @@
       "registros_clinicos_2019_2023": {
         "cost_per_row": 1.0,
         "config": {},
-        "context": {"cohort": 0.0}
+        "context": {
+          "cohort": 0.0
+        }
       }
     },
-    "experiment": {"cost_fixed": 100.0, "cost_per_row": 2.0},
+    "experiment": {
+      "cost_fixed": 100.0,
+      "cost_per_row": 2.0
+    },
     "smoke_regimes": [
-      {"config": {"dose": 1.0}, "context": {"cohort": 0.0}, "horizon": null},
-      {"config": {"dose": 5.0}, "context": {"cohort": 0.0}, "horizon": null},
-      {"config": {}, "context": {"cohort": 0.0}, "horizon": null}
+      {
+        "config": {
+          "dose": 1.0
+        },
+        "context": {
+          "cohort": 0.0
+        },
+        "horizon": null
+      },
+      {
+        "config": {
+          "dose": 5.0
+        },
+        "context": {
+          "cohort": 0.0
+        },
+        "horizon": null
+      },
+      {
+        "config": {
+          "dose": 9.0
+        },
+        "context": {
+          "cohort": 0.0
+        },
+        "horizon": null
+      },
+      {
+        "config": {
+          "dose": 0.0
+        },
+        "context": {
+          "cohort": 1.5
+        },
+        "horizon": null
+      },
+      {
+        "config": {},
+        "context": {
+          "cohort": 0.0
+        },
+        "horizon": null
+      },
+      {
+        "config": {},
+        "context": {
+          "cohort": -1.0
+        },
+        "horizon": null
+      }
     ],
     "control_surface": {
-      "settable": {"dose": {"low": 0.0, "high": 10.0, "unit": "mg"}},
-      "context": {"cohort": "population baseline level (a property of who arrives; targetable in experiments, not freely set per-patient)"}
+      "settable": {
+        "dose": {
+          "low": 0.0,
+          "high": 10.0,
+          "unit": "mg"
+        }
+      },
+      "context": {
+        "cohort": "population baseline level (a property of who arrives; targetable in experiments, not freely set per-patient)"
+      }
     }
   },
   "prior_reliability": null

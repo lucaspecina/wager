@@ -25,8 +25,9 @@ from wager.contracts import (
 from wager.contracts.world import Regime
 from wager.reward.episode_score import score_episode_submission
 from wager.reward.sandbox import SandboxedSubmission, SandboxError, lint_submission
+from wager.reward.seeds import derive_seed
 
-SMOKE_N = 50
+SMOKE_N = 200
 
 
 class BudgetError(RuntimeError):
@@ -164,7 +165,9 @@ class WorldServer:
             with SandboxedSubmission(code, self.columns, timeout_s=self.scoring.params.model_call_timeout_s) as sb:
                 for i, regime in enumerate(self.config.smoke_regimes):
                     try:
-                        sb.run(regime, SMOKE_N, 12345 + i)
+                        # representative seeds (same magnitude as scoring) so a
+                        # seed-range crash is caught here, not silently at scoring
+                        sb.run(regime, SMOKE_N, derive_seed(99991, i))
                     except SandboxError as exc:
                         return (
                             f"smoke regime {i} (config={regime.config}) failed: {exc}. "
