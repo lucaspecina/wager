@@ -79,3 +79,17 @@ def test_llm_one_call_smoke():
     turn = chat.ask("Reply with exactly: ok")
     assert "ok" in turn.content.lower()
     assert chat.usage.total_tokens > 0
+
+
+@pytest.mark.skipif(
+    os.environ.get("RUN_LLM_TESTS") != "1",
+    reason="real-LLM panel smoke; set RUN_LLM_TESTS=1 to run",
+)
+def test_rival_c_panel_compiles_to_program(meta):
+    # LLM-first milestone: a fresh LLM, given brief+schema only, compiles to an
+    # executable model(regime, n, seed) that passes the schema smoke.
+    from wager.factory.rival_c_panel import compile_panel_member
+
+    brief = "Observables: dose (mg), marker, outcome. A dose-response system."
+    member = compile_panel_member(brief, meta.column_names, meta.episode.smoke_regimes)
+    assert member["code"] is not None, f"panel member did not compile: {member.get('last_error')}"

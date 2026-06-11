@@ -61,13 +61,32 @@ Fixtures de la escalera intactos.
   (un modelo sin latente saca ~0.92). Reportar SIEMPRE R_uncl (clips≠mediciones).
 - Fricciones resueltas: no-ASCII en briefs; `hasattr` faltaba; seeds 64-bit.
 
-## Qué falta
+## Slice de derivación automática (EN CURSO, Decision Log v0.17–v0.18)
 
-1. Derivación automática de rivales (§5) y batería (§6) — al existir, **expira la
-   excepción de bootstrap** (batería, escalera L1 y brief a mano).
-2. E1: ~20 mundos a mano en 2 familias, ≥5 suites, certificados (§7) (ARCHITECTURE §12).
-3. Hardening del handle opaco (jaula de filesystem, gc/closure) — gaps en `REDTEAM.md`.
-4. Mejor extractor de firmas del trace (el keyword-suspicion v0 sub-detecta).
+Pre-registración v0.17 (predicciones dummy/Mendel ANTES de correr). Hecho:
+- **Mundo estructurado** (`world.py` PARAMS + mechanism; meta declara `ablation`).
+- **`score_callable`** (reward): scoring in-process de rivales callable de fábrica.
+- **Rivales a/d** (`wager/factory/derive_rivals.py`) + **certificados**
+  (`certificates.py`): brecha de teoría + mecanística.
+- **Certificado dummy ✅ (predicción i CONFIRMADA)**: theory gap **0.062** (no-latente
+  recupera R=0.938), mechanistic gap **0.990**. El dummy es trampa de confounding,
+  no de latente. La disciplina cazó 2 artefactos de rival débil (predicción registrada).
+- **Rival (c) panel ✅** (LLM-first milestone, `rival_c_panel.py`): 3/3 LLMs frescos
+  compilan a programa ejecutable; el prior aterriza < ingenuo (R≈0).
+
+**Falta (próximo increment)**:
+1. `battery_builder` (candidatos + desacuerdo + relevancia + pesos) → batería derivada
+   que ordene la escalera a mano (aceptación i) + expira bootstrap.
+2. Rival (b) gemelo (ablación de operador + refit).
+3. **Mundo Mendel** (subtipos latentes): predicciones (ii) theory gap grande + (iii)
+   peso de batería donde el no-latente falla; pasar L1 100% derivado (aceptación ii).
+4. Auditoría humana top-10 (ambos mundos, formato legible). Stretch: E0-Mendel.
+
+## Qué falta (más allá del slice)
+
+- E1: ~20 mundos a mano en 2 familias, ≥5 suites (ARCHITECTURE §12).
+- Hardening del handle opaco (gaps en `REDTEAM.md`); mejor extractor de firmas.
+- Collider+medición (3er mundo, ejercita la capa de muestreo).
 
 ## Deuda / pendientes
 
