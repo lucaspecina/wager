@@ -1,0 +1,55 @@
+{
+  "case_id": "dummy_dose_v0",
+  "suite": "causal_with_client",
+  "columns": [
+    {
+      "name": "dose",
+      "dtype": "float",
+      "unit": "mg",
+      "description": "administered dose"
+    },
+    {
+      "name": "marker",
+      "dtype": "float",
+      "unit": null,
+      "description": "noisy clinical marker (severity proxy)"
+    },
+    {
+      "name": "outcome",
+      "dtype": "float",
+      "unit": null,
+      "description": "recovery score"
+    }
+  ],
+  "operators": [
+    {
+      "name": "confounding_por_indicacion",
+      "layer": "mechanism",
+      "knobs": {
+        "assignment_strength": 1.5
+      }
+    },
+    {
+      "name": "umbral_no_lineal",
+      "layer": "mechanism",
+      "knobs": {
+        "sat_half": 4.0,
+        "sat_scale": 10.0
+      }
+    }
+  ],
+  "stakes": {
+    "narrative": "A clinic operator must set the dose policy for incoming populations, including doses and populations outside the historical record; mispricing the dose-response curve where it saturates is costly.",
+    "decision_variables": [
+      "dose"
+    ]
+  },
+  "scoring": {
+    "lambda_mdl": 0.0001022802833517887,
+    "lambda_provisional": true,
+    "n_samples": 1000,
+    "m_reps": 5,
+    "model_call_timeout_s": 10.0
+  },
+  "prior_reliability": null
+}
