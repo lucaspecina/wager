@@ -65,6 +65,17 @@ def test_reward_imports_within_allowlist():
     assert not violations, "reward path import allowlist violated:\n" + "\n".join(violations)
 
 
+def test_reward_path_does_not_import_agent_or_harness():
+    # 'wager' is an allowed root, so the allowlist alone would let reward import
+    # wager.agent / wager.harness (which DO use LLMs). Forbid it explicitly.
+    offenders: list[str] = []
+    for path in _reward_py_files():
+        for name in _imported_roots(path):
+            if name.startswith(("wager.agent", "wager.harness")):
+                offenders.append(f"{path.name}: '{name}'")
+    assert not offenders, "reward path imports an LLM-facing package:\n" + "\n".join(offenders)
+
+
 def test_reward_path_has_no_llm_tells():
     offenders: list[str] = []
     for path in _reward_py_files():

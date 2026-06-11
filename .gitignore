@@ -216,3 +216,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# WAGER
+.env                  # Foundry credentials (solver side); never committed
+scratch/              # throwaway probes + commit-message files

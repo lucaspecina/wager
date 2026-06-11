@@ -5,20 +5,22 @@
 
 ## Qué corre hoy
 
-**Slice 1 completo y verde**: el reward path end-to-end sobre el mundo dummy
-`dummy_dose_v0`, con L0/L1/L2 cumpliendo sus criterios de aceptación.
+**Slice 1 (reward path) completo y verde** + **Slice 2 C1 (smoke LLM) verde**.
+`pip install -e .[dev,agent]` + `pytest` → **53 verdes, 1 skip** (test LLM opt-in;
+correr con `RUN_LLM_TESTS=1`). Python 3.13.
 
-- `pip install -e .[dev]` + `pytest` → **45 tests verdes** (Python 3.13).
 - `wager/contracts/` — contratos Pydantic v2 (world, case, reports).
-- `wager/reward/` — **zona cero-LLM** (allowlist de imports en CI): `seeds`,
-  `distance` (energy distance + estandarización por la verdad), `mdl`
-  (AST-min→zlib + ensembles por concat canónico), `sandbox` (AST-lint + proceso
-  hijo + red off + timeout), `scorer` (R, D_MAX), `ladder` (L1), `variance` (L2).
+- `wager/reward/` — **zona cero-LLM** (allowlist de imports en CI + no importa
+  `wager.agent`/`wager.harness`): `seeds`, `distance`, `mdl`, `sandbox`, `scorer`
+  (R, D_MAX), `ladder` (L1), `variance` (L2).
 - `wager/factory/` — `case_loader`, `world_lint` (lado fábrica; LLM permitido acá).
-- `cases/dummy_dose_v0/` — `world.py` (SCM: confounding-by-indication mecanístico
-  + dosis-respuesta saturante), `battery.json` (16 ítems a mano), `meta.json`,
-  `ladder/` (6 fixtures determinísticos commiteados), `make_ladder_fixtures.py`
-  (regenera fixtures + calibra λ), `run_slice.py` (entregables), `diagnose.py`.
+- `wager/agent/` — **lado solver (LLM)**: `llm_client` (Foundry v1 multi-turn),
+  `cells` (extractor de celdas). Nunca importado por `wager.reward`.
+- `wager/harness/` — `kernel` (kernel Python persistente), `c1_env` (env mínimo
+  describe/observe + ledger). Verbos completos + opacidad en C3.
+- `cases/dummy_dose_v0/` — `world.py`, `battery.json`, `meta.json`, `ladder/`
+  (6 fixtures), `brief.md` (cara pública, ASCII), `make_ladder_fixtures.py`,
+  `run_slice.py`, `diagnose.py`, `ablate_m.py`, `c1_smoke.py`, `traces/`.
 
 ### Entregables medidos (`python cases/dummy_dose_v0/run_slice.py`, defaults v0 K=16 n=1000 m=2)
 
@@ -43,18 +45,19 @@ orden total; se diagnosticó per-ítem (`diagnose.py`) antes de tocar nada:
    ahora contra el rango de normalización S_verdad−S_ingenuo (unidades de R).
 Fixtures de la escalera intactos.
 
-## Qué falta (orden de la escalera, NORTH_STAR §6)
+## Qué falta (Slice 2 y más allá)
 
-1. **Harness interactivo (próximo slice — "E0")**: verbos env.describe/observe/
-   experiment/submit + ledger de presupuesto, kernel persistente, handle opaco v0
-   (mundo en proceso separado), validación de humo. Aceptación: UN episodio real
-   con un frontier vía API sobre dummy_dose_v0 (trace + costo + R + fricciones del
-   contrato). E0 es observación de jugabilidad, no eval (ARCHITECTURE §8/§14.2;
-   gaps de endurecimiento RPC → `REDTEAM.md`).
-2. Derivación automática de rivales (§5) y batería (§6) — al existir, **expira la
-   excepción de bootstrap** (batería y escalera a mano del Slice 1).
-3. E1: ~20 mundos a mano en 2 familias, ≥5 suites, certificados (§7), frontiers
-   vía API (ARCHITECTURE §12).
+1. **C2 — par scripteado** (no gatea C3): `solver_naive` (~R≈0) y `solver_canonical`
+   (>0.7) como trayectorias completas y fixtures permanentes. Necesita los verbos
+   `experiment`/`submit` + integración con el scorer del Slice 1.
+2. **C3 — E0 + E0.5**: verbos completos, handle opaco v0 (proceso separado, IPC
+   solo-datos), validación de humo en submit, brief completo (superficie de control
+   + neutralización del nombre de contexto `severity_mean`), red-team de
+   introspección (`dir(env)`/`__dict__`/`gc`). E0 = 1 episodio gpt-5.4; E0.5 = 3–5
+   episodios, 2 modelos. Observación de jugabilidad, no eval.
+3. Derivación automática de rivales (§5) y batería (§6) — al existir, **expira la
+   excepción de bootstrap** (batería, escalera L1 y brief a mano).
+4. E1: ~20 mundos a mano en 2 familias, ≥5 suites, certificados (§7) (ARCHITECTURE §12).
 
 ## Deuda / pendientes
 

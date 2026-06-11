@@ -15,6 +15,7 @@ El código nunca contradice los docs en silencio: si la implementación revela u
 
 - **JAMÁS un LLM en el cómputo del reward.** Si una solución lo requiere, frenar y discutir. (NORTH_STAR §2.2)
 - Esa regla se convierte en código desde el día uno: **test de CI que falla el build si hay llamadas a LLM en el camino del reward** (ARCHITECTURE §13-L0). Ídem sandbox red-team: tests que intentan hacer trampa y deben fallar.
+- **Integración LLM primero** (Decision Log v0.14): todo subsistema con superficie hacia un LLM (harness/solver; en el futuro brief writer, prior evocado, digestion, validators) tiene como **PRIMER milestone un smoke test con LLM real del camino más fino** — nunca como último. Los bugs de integración (plumbing multi-turn, comprensión del contrato, ergonomía del sandbox, costos reales) son los que más calendario queman y solo aparecen con modelo real. Los tests de wiring y los solvers scripteados siguen como controles, pero **no gatean la primera llamada real**. Excepción que no se mueve con el apuro: el reward path sigue cero-LLM (el CI lo protege; ataque #18).
 - Todo mundo nuevo pasa la **escalera de verdades degradadas** (ARCHITECTURE §13-L1) antes de entrar a una suite.
 - Antes de tocar submission/batería/score: releer NORTH_STAR §4.4 y ARCHITECTURE §5–6–9.
 - Las conductas del agente se **observan** (traces, firmas), nunca se premian. (NORTH_STAR §2.1, §2.6)

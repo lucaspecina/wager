@@ -18,6 +18,11 @@ dependencies = [
 dev = [
     "pytest>=8.0",
 ]
+# Agent/solver side ONLY (LLM-facing). NEVER a dependency of wager.reward.
+agent = [
+    "openai>=1.40",
+    "python-dotenv",
+]
 
 [tool.setuptools.packages.find]
 include = ["wager*"]
