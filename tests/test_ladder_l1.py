@@ -34,6 +34,26 @@ def test_ladder_truth_rung_is_r_one(ladder_report):
     assert ladder_report.rungs[0].r_unclipped == pytest.approx(1.0, abs=1e-9)
 
 
+def test_anchors_are_labelled_and_naive_rung_is_the_s_naive_anchor(ladder_report):
+    """The 'naive fit' fixture (rung -2) IS the same object as the S_naive
+    anchor of the normalization (Decision Log P3/v0.12): its raw score equals
+    s_naive exactly and its R is 0 by construction. Anchors must not be read as
+    measurements."""
+    rungs = ladder_report.rungs
+    anchors = ladder_report.anchors
+    assert rungs[0].kind == "anchor:S_truth"
+    assert rungs[-2].kind == "anchor:S_naive"
+    assert rungs[-1].kind == "reference:S_null"
+    assert all(r.kind == "measurement" for r in rungs[1:-2])
+
+    naive = rungs[-2]
+    assert naive.raw_score == anchors.s_naive  # same object, not a coincidence
+    assert naive.r == pytest.approx(0.0, abs=1e-12)
+    truth = rungs[0]
+    assert truth.raw_score == anchors.s_truth
+    assert rungs[-1].raw_score == anchors.s_null
+
+
 def test_ladder_strictly_descending(ladder_report):
     raws = [rung.raw_score for rung in ladder_report.rungs]
     assert raws == sorted(raws, reverse=True), [round(x, 5) for x in raws]

@@ -9,7 +9,6 @@ CV over normalized R clears the initial target on a reduced configuration.
 
 import pytest
 
-from wager.contracts import ScoringParams
 from wager.reward.variance import run_variance_protocol
 
 CV_TARGET = 0.05  # initial target, Decision Log v0.10 (empirical)
@@ -20,9 +19,7 @@ def test_variance_protocol_runs_and_is_low_cv(
     world_sample, world_source, ladder, battery, meta
 ):
     rungs = dict(ladder)
-    params = ScoringParams(
-        lambda_mdl=meta.scoring.lambda_mdl, n_samples=1000, m_reps=5,
-    )
+    params = meta.scoring  # v0 defaults (n=1000, m=2)
     report = run_variance_protocol(
         world_sample=world_sample,
         world_source=world_source,

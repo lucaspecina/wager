@@ -55,15 +55,16 @@ def main() -> None:
           f"S_naive={l1.anchors.s_naive:+.5f}  S_null={l1.anchors.s_null:+.5f}")
     print(f"  normalization range (S_truth - S_naive) = {l1.anchors.normalization_range:.5f}")
     print(f"  null range (diagnostic, S_truth - S_null) = {l1.anchors.null_range:.5f}")
-    print(f"  margin required = {l1.margin_required:.0%} of normalization range\n")
-    print(f"  {'rung':<26s}{'raw':>12s}{'R':>8s}{'R_uncl':>9s}{'margin->next':>14s}")
+    print(f"  margin required = {l1.margin_required:.0%} of normalization range")
+    print("  anchors (R fixed by construction) vs measurements are marked in 'kind'\n")
+    print(f"  {'rung':<26s}{'raw':>11s}{'R':>7s}{'R_uncl':>8s}{'margin':>9s}  kind")
     for rung in l1.rungs:
         margin = "-" if rung.margin_to_next is None else f"{rung.margin_to_next:+.4f}"
         flag = ""
         if rung.margin_to_next is not None and rung.margin_to_next < l1.margin_required:
             flag = "  < MARGIN"
-        print(f"  {rung.name:<26s}{rung.raw_score:>12.5f}{rung.r:>8.3f}"
-              f"{rung.r_unclipped:>9.3f}{margin:>14s}{flag}")
+        print(f"  {rung.name:<26s}{rung.raw_score:>11.5f}{rung.r:>7.3f}"
+              f"{rung.r_unclipped:>8.3f}{margin:>9s}  {rung.kind}{flag}")
     print(f"\n  L1 PASSED = {l1.passed}   "
           f"(wall {l1.cost.wall_seconds:.1f}s, K*n*m = "
           f"{l1.cost.k_items}*{l1.cost.n_samples}*{l1.cost.m_reps})")

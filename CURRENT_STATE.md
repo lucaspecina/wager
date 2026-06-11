@@ -20,14 +20,18 @@
   `ladder/` (6 fixtures determinísticos commiteados), `make_ladder_fixtures.py`
   (regenera fixtures + calibra λ), `run_slice.py` (entregables), `diagnose.py`.
 
-### Entregables medidos (`python cases/dummy_dose_v0/run_slice.py`)
+### Entregables medidos (`python cases/dummy_dose_v0/run_slice.py`, defaults v0 K=16 n=1000 m=2)
 
-- **L1**: orden total de las 6 verdades degradadas con todos los márgenes ≥5%.
-  R = {verdad 1.000, perturbado 0.941, linealizado 0.725, gemelo 0.340,
-  ingenuo 0.000, nulo 0/−2.55}. Margen más ajustado: verdad→perturbado 5.9%.
-- **L2**: CV(R) = 1.1% sobre 20 seed-sets (objetivo <5%); CV(S_verdad) = 0.4%;
-  descomposición std(R) total 0.0079 = lado-mundo 0.0076 ⊕ lado-maqueta 0.0021.
-- **Costo K×n×m** (16×1000×5): L1 8.5s, L2 57.6s.
+- **L1**: orden total de las 6 verdades degradadas con todos los márgenes ≥5%,
+  cada peldaño anotado como ancla (R fijo) o medición. R = {verdad 1.000
+  (anchor:S_truth), perturbado 0.942, linealizado 0.728, gemelo 0.344, ingenuo
+  0.000 (anchor:S_naive), nulo 0/−2.53 (reference:S_null)}. Margen más ajustado:
+  verdad→perturbado 5.85%.
+- **L2**: CV(R) = 1.17% sobre 20 seed-sets (objetivo <5%); CV(S_verdad) = 0.54%;
+  descomposición std(R) total 0.0084 = lado-mundo 0.0075 ⊕ lado-maqueta 0.0039.
+- **Costo K×n×m** (16×1000×2): L1 6.4s, L2 27.1s.
+- **Ablación de m** (`ablate_m.py`): CV(R) 1.17/1.13/1.10% para m=2/3/5 → m=2
+  default v0 (el lado-mundo domina; subir m casi no mueve el total).
 
 ## Hallazgos del Slice 1 (Decision Log v0.12)
 
@@ -41,8 +45,12 @@ Fixtures de la escalera intactos.
 
 ## Qué falta (orden de la escalera, NORTH_STAR §6)
 
-1. Harness interactivo (REPL + env handle opaco RPC, ARCHITECTURE §8/§14.2) +
-   endurecimiento real del sandbox (los gaps están en `REDTEAM.md`).
+1. **Harness interactivo (próximo slice — "E0")**: verbos env.describe/observe/
+   experiment/submit + ledger de presupuesto, kernel persistente, handle opaco v0
+   (mundo en proceso separado), validación de humo. Aceptación: UN episodio real
+   con un frontier vía API sobre dummy_dose_v0 (trace + costo + R + fricciones del
+   contrato). E0 es observación de jugabilidad, no eval (ARCHITECTURE §8/§14.2;
+   gaps de endurecimiento RPC → `REDTEAM.md`).
 2. Derivación automática de rivales (§5) y batería (§6) — al existir, **expira la
    excepción de bootstrap** (batería y escalera a mano del Slice 1).
 3. E1: ~20 mundos a mano en 2 familias, ≥5 suites, certificados (§7), frontiers

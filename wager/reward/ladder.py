@@ -61,6 +61,24 @@ def run_ladder(
     if score_range <= 0:
         raise ValueError("S_truth - S_naive <= 0: the world does not discriminate")
 
+    # Anchors by construction (Decision Log v0.12): rung 0 is world.py (=> S_truth,
+    # R=1); the second-to-last rung is the naive fit and IS the S_naive anchor of
+    # the normalization (rival (a); in production the same derived object, here the
+    # bootstrap fixture); the last rung is the null (=> S_null, the D_MAX reference
+    # and diagnostic floor). Everything between rung 0 and the naive rung is a
+    # genuine measurement.
+    last = len(raw_scores) - 1
+    naive_idx = last - 1
+
+    def _kind(i: int) -> str:
+        if i == 0:
+            return "anchor:S_truth"
+        if i == naive_idx:
+            return "anchor:S_naive"
+        if i == last:
+            return "reference:S_null"
+        return "measurement"
+
     rungs: list[LadderRung] = []
     margins: list[float] = []
     for i, (name, raw) in enumerate(raw_scores):
@@ -70,7 +88,14 @@ def run_ladder(
             margin = (raw - raw_scores[i + 1][1]) / score_range
             margins.append(margin)
         rungs.append(
-            LadderRung(name=name, raw_score=raw, r=r, r_unclipped=r_unclipped, margin_to_next=margin)
+            LadderRung(
+                name=name,
+                raw_score=raw,
+                r=r,
+                r_unclipped=r_unclipped,
+                margin_to_next=margin,
+                kind=_kind(i),
+            )
         )
 
     return LadderReport(

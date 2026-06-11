@@ -59,7 +59,9 @@ class ScoringParams(BaseModel):
     # case; provisional until calibrated over the E1 suite (Decision Log v0.11)
     lambda_provisional: bool = True
     n_samples: int = 1000
-    m_reps: int = 5
+    m_reps: int = 2  # v0 default (Decision Log v0.12 item 2): CV(R)~1.2% on the
+    # dummy, world-side noise dominates so m>2 buys little; raise per case if the
+    # L2 protocol shows model-side noise matters
     model_call_timeout_s: float = 10.0
 
 

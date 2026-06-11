@@ -1,5 +1,7 @@
 """Report contracts emitted by the reward path (scoring, L1 ladder, L2 variance)."""
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -82,6 +84,15 @@ class LadderRung(BaseModel):
     # (raw_this - raw_next) / (s_truth - s_naive), i.e. the gap in normalized-R
     # units; None for the last rung (Decision Log v0.12)
     margin_to_next: float | None = None
+    # How to read this rung's R (decided by construction, Decision Log v0.12):
+    #  - "anchor:S_truth"  -> R == 1 by construction (world.py through the same
+    #     pipeline); NOT a measurement of fidelity.
+    #  - "anchor:S_naive"  -> R == 0 by construction; THIS fixture IS the same
+    #     object as the S_naive anchor of the normalization (the naive rival a).
+    #  - "reference:S_null" -> the D_MAX reference / diagnostic floor; below the
+    #     R scale (R clips to 0), not an anchor of [0, 1].
+    #  - "measurement"      -> a genuine score; its R carries information.
+    kind: Literal["anchor:S_truth", "anchor:S_naive", "reference:S_null", "measurement"]
 
 
 class LadderReport(BaseModel):
