@@ -27,6 +27,9 @@
       "layer": "mechanism",
       "knobs": {
         "assignment_strength": 1.5
+      },
+      "ablation": {
+        "sev_coef_dose": 0.0
       }
     },
     {
@@ -35,6 +38,10 @@
       "knobs": {
         "sat_half": 4.0,
         "sat_scale": 10.0
+      },
+      "ablation": {
+        "sat_half": 10000.0,
+        "sat_scale": 11000.0
       }
     }
   ],

@@ -160,6 +160,41 @@ def score_submission(
             sandbox.close()
 
 
+def score_callable(
+    sample_fn: Callable,
+    world_side: WorldSide,
+    params: ScoringParams,
+    rep_offset: int = 0,
+) -> float:
+    """Fidelity of a TRUSTED in-process rival callable (factory side).
+
+    Same distance/seed/D_MAX semantics as score_submission, but the rival is a
+    callable sample_fn(regime_namespace, n, seed) run in-process -- no sandbox,
+    no MDL term. For deriving rivals, the battery and the certificates; NEVER for
+    agent submissions (those stay sandboxed). Returns fidelity (<= 0).
+    """
+    weights = np.array([it.weight for it in world_side.battery.items], dtype=float)
+    weights = weights / weights.sum()
+    fidelity = 0.0
+    for idx, item in enumerate(world_side.battery.items):
+        truth_side = world_side.truth_sides[idx]
+        d_max = world_side.d_maxes[idx]
+        ns = regime_to_namespace(item.regime)
+        d = 0.0
+        for j in range(params.m_reps):
+            seed_m = derive_seed(item.seed_world, j + rep_offset)
+            try:
+                pred = sample_fn(ns, params.n_samples, seed_m)
+                dist = truth_side.distance_to(pred)
+                if dist >= d_max:
+                    dist = d_max
+            except Exception:  # noqa: BLE001
+                dist = d_max
+            d += dist / params.m_reps
+        fidelity -= float(weights[idx]) * d
+    return fidelity
+
+
 def make_anchors(s_truth: float, s_naive: float, s_null: float) -> AnchorSet:
     return AnchorSet(s_truth=s_truth, s_naive=s_naive, s_null=s_null)
 

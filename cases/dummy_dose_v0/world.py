@@ -27,39 +27,52 @@ import pandas as pd
 
 COLUMNS = ["dose", "marker", "outcome"]
 
-SEV_COEF_DOSE = 1.5
-DOSE_BASE = 2.0
-DOSE_NOISE = 1.0
-DOSE_MIN = 0.0
-DOSE_MAX = 10.0
-SAT_SCALE = 10.0
-SAT_HALF = 4.0
-EFFECT_DOSE = 1.0
-EFFECT_SEV = -2.0
-OUTCOME_NOISE = 0.5
-MARKER_NOISE = 1.5
+# Structured mechanism (Decision Log v0.18): the truth is mechanism(PARAMS, ...);
+# the factory derives ladder rungs and innocent twins by perturbing or ablating
+# these params (operator -> param mapping declared in meta.json). meta declares,
+# per operator, the param keys it controls and their "off" values, so the
+# derivation can render the world with one operator ablated WITHOUT introspecting
+# this file by hand. sample() = mechanism(PARAMS, ...) (the S_truth anchor).
+PARAMS = {
+    "sev_coef_dose": 1.5,   # confounding_por_indicacion: severity -> dose
+    "dose_base": 2.0,
+    "dose_noise": 1.0,
+    "sat_scale": 10.0,      # umbral_no_lineal: saturating response shape
+    "sat_half": 4.0,
+    "effect_dose": 1.0,
+    "effect_sev": -2.0,
+    "outcome_noise": 0.5,
+    "marker_noise": 1.5,
+}
+DOSE_MIN, DOSE_MAX = 0.0, 10.0
 
 
-def _saturating(dose):
-    return SAT_SCALE * dose / (dose + SAT_HALF)
+def _response(dose, p):
+    # Hill/saturating; sat_half -> large makes it ~linear (the operator's "off")
+    return p["sat_scale"] * dose / (dose + p["sat_half"])
 
 
-def sample(regime, n, seed):
+def mechanism(params, regime, n, seed):
+    p = params
     rng = np.random.default_rng(seed)
     cohort = regime.context.get("cohort", 0.0)
     severity = rng.normal(cohort, 1.0, n)
     if "dose" in regime.config:
         dose = np.full(n, float(regime.config["dose"]))
     else:
-        raw = DOSE_BASE + SEV_COEF_DOSE * severity + rng.normal(0.0, DOSE_NOISE, n)
+        raw = p["dose_base"] + p["sev_coef_dose"] * severity + rng.normal(0.0, p["dose_noise"], n)
         dose = np.clip(raw, DOSE_MIN, DOSE_MAX)
     outcome = (
-        EFFECT_DOSE * _saturating(dose)
-        + EFFECT_SEV * severity
-        + rng.normal(0.0, OUTCOME_NOISE, n)
+        p["effect_dose"] * _response(dose, p)
+        + p["effect_sev"] * severity
+        + rng.normal(0.0, p["outcome_noise"], n)
     )
-    marker = severity + rng.normal(0.0, MARKER_NOISE, n)
+    marker = severity + rng.normal(0.0, p["marker_noise"], n)
     return pd.DataFrame({"dose": dose, "marker": marker, "outcome": outcome})
+
+
+def sample(regime, n, seed):
+    return mechanism(PARAMS, regime, n, seed)
 
 
 model = sample

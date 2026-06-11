@@ -43,6 +43,9 @@ class OperatorInstance(BaseModel):
     name: str
     layer: Literal["mechanism", "channel", "sampling", "meta"]
     knobs: dict[str, float] = Field(default_factory=dict)
+    # mechanism-layer operators declare param overrides that ABLATE them, so the
+    # factory can render the world with this operator off (derived twins / ladder)
+    ablation: dict[str, float] = Field(default_factory=dict)
 
 
 class StakesSpec(BaseModel):
