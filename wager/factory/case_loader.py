@@ -20,16 +20,22 @@ def load_world_source(case_dir: str | Path) -> str:
     return (Path(case_dir) / "world.py").read_text(encoding="utf-8")
 
 
-def load_world_sample(case_dir: str | Path) -> Callable:
-    """Import world.py in-process (server side: the truth is ours) and return
-    its sample(regime, n, seed) callable."""
+def load_world_module(case_dir: str | Path):
+    """Import world.py in-process (server side: the truth is ours) and return the
+    module -- exposes sample, and (structured worlds) mechanism + PARAMS for the
+    factory to perturb/ablate when deriving twins/ladder."""
     case_dir = Path(case_dir)
     module_name = f"wager_world_{case_dir.name}"
     spec = importlib.util.spec_from_file_location(module_name, case_dir / "world.py")
     module = importlib.util.module_from_spec(spec)
     sys.modules[module_name] = module
     spec.loader.exec_module(module)
-    return module.sample
+    return module
+
+
+def load_world_sample(case_dir: str | Path) -> Callable:
+    """The world's sample(regime, n, seed) callable."""
+    return load_world_module(case_dir).sample
 
 
 def load_battery(case_dir: str | Path) -> Battery:
