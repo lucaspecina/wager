@@ -29,14 +29,14 @@ El código nunca contradice los docs en silencio: si la implementación revela u
 
 - Unidad de avance: el **slice vertical más chico** que ejercite el reward path completo (mundo → episodio → submission → score).
 - El orden de trabajo lo define la escalera experimental (NORTH_STAR §6). **E1 primero**: no requiere RL ni designer automático. Lo mínimo para E1 está en ARCHITECTURE §12.
-- Primer slice sugerido: contenedor de caso + scorer con UN mundo dummy hardcodeado y una batería escrita a mano — smoke test end-to-end del reward path. Recién después, harness interactivo.
+- Primer slice sugerido: contenedor de caso + scorer con UN mundo dummy hardcodeado y una batería escrita a mano — smoke test end-to-end del reward path. Recién después, harness interactivo. (Batería y peldaños L1 a mano = **excepción de bootstrap, SOLO Slice 1**; expira cuando exista la derivación automática de rivales §5 + batería §6 — Decision Log v0.10.)
 - Tests de wiring por componente; tests E2E con LLM real solo cuando el wiring está verde.
 - Toda decisión de diseño no trivial → Decision Log de NORTH_STAR (fecha — decisión — razón en una línea).
 - Open questions nuevas → NORTH_STAR §10 (inbox); al resolverse, migran al Decision Log.
 
 ## Referencia SREG — política de cuarentena
 
-El repo SREG (proyecto anterior, mismo autor) es **referencia de SOLO LECTURA** en: `<completar-path-local>`.
+El repo SREG (proyecto anterior, mismo autor) es **referencia de SOLO LECTURA** en: `C:\Users\YT40432\Desktop\lp\research\lucaspecina\synthetic-research-envs`.
 
 - **Regla spec-first**: SREG se consulta SOLO cuando el spec WAGER del componente ya está escrito y aceptado. SREG responde "cómo implemento este spec", nunca "qué debería ser el spec".
 - **Allowlist** (portear con mínima cirugía — plomería neutral que costó días de debugging): kernel Jupyter persistente (patrón python_exec), cliente LLM Azure incluidos los fixes de multi-turn de la Responses API, patrones de contratos Pydantic, maquinaria anti-leak (capsule / writers ciegos), scaffolding de repo y tests.
@@ -61,4 +61,4 @@ El repo SREG (proyecto anterior, mismo autor) es **referencia de SOLO LECTURA** 
 
 ## Estado actual
 
-Pre-código. Docs en v0.9 (NORTH_STAR) y v0.2 (ARCHITECTURE). Próximo paso: primer slice del reward path (ver Workflow), que debe incluir L1 (escalera de verdades degradadas) y L2 (protocolo de varianza) sobre el mundo dummy.
+El estado vivo (qué corre hoy, qué falta, próximo paso) está en `CURRENT_STATE.md` — mantenerlo SIEMPRE actualizado al cerrar cada sesión de trabajo. Docs en v0.10 (NORTH_STAR) y v0.3 (ARCHITECTURE).

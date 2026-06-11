@@ -3,7 +3,7 @@
 
 > **Qué es este documento.** El "cómo" a nivel de contratos, librerías y algoritmos. El "por qué" y el "qué" viven en `NORTH_STAR.md` — ante conflicto conceptual, manda NORTH_STAR. Se mantiene con la misma disciplina (NORTH_STAR §0): nada se borra, decisiones al Decision Log, secciones `[ESTABLE]` / `[EN DEBATE]`.
 >
-> **Estado**: v0.2 (2026-06-11). v0.1: spec inicial. v0.2: pirámide de validación (§13), normalización del reward por anclas (§9.1), experimentos con canal sucio (§8), certificado de recuperabilidad + proxies declarados (§7), columnas señuelo (§4), triangulación (§10). Todo lo marcado `[EN DEBATE]` se espera que cambie al contacto con el código.
+> **Estado**: v0.3 (2026-06-11). v0.1: spec inicial. v0.2: pirámide de validación (§13), normalización del reward por anclas (§9.1), experimentos con canal sucio (§8), certificado de recuperabilidad + proxies declarados (§7), columnas señuelo (§4), triangulación (§10). v0.3: decisiones pre-Slice 1 (Decision Log de NORTH_STAR v0.10) — semántica de seeds y pseudocódigo del scorer corregido (§9), anclas con función completa + serialización canónica del rival (a) (§9.1), MDL AST-min→zlib + ensembles por concat canónico (§9.2), D_MAX_item (§8), acceso a datos de rivales (a)/(d) (§5), stakes en `meta.json` (§6), L1 monotonía-por-eje + valores iniciales L1/L2 (§13), lint de imports en humo y en `world.py` (§8), fuentes con plantillas neutrales (§4). Todo lo marcado `[EN DEBATE]` se espera que cambie al contacto con el código.
 
 ---
 
@@ -16,7 +16,8 @@ cases/<case_id>/
   world.py        # mecanismo + superficie de control + sample()  — la verdad
   sources.yaml    # fuentes observacionales: costo, n disponible, operadores aplicados
   brief.md        # narrativa + stakes + ficha técnica — lo ÚNICO que ve el agente
-  battery.json    # [(peso, regime, seed), ...] — OCULTO al agente
+  battery.json    # [(peso, regime, seed_mundo), ...] — OCULTO al agente
+                  #   (los seeds lado-maqueta se derivan: derive_seed(seed_mundo, j), §9)
   rivals/         # programas rivales (misma firma que world.sample) — OCULTOS
   meta.json       # operadores instalados + perillas, brechas computadas, suite,
                   # semilla de origen (si hubo), perilla de prior, certificados
@@ -128,7 +129,7 @@ En ambos modos los operadores instalados quedan **declarados en `meta.json`** (j
 
 El principio de SREG sobrevive en todas las fuentes: *el caso real inspira la estructura del engaño; el mundo es nuevo*.
 
-**Columnas señuelo (anti-leak de esquema).** El esquema lo elige quien conoce la trampa → es un canal de leak no auditado: una columna `fecha_de_entrada_a_cohorte` susurra immortal time. Reglas: los esquemas se samplean de plantillas por dominio con independencia de las trampas instaladas, y todo mundo lleva columnas plausibles e irrelevantes. El probe del generador (§14) se extiende al nivel esquema.
+**Columnas señuelo (anti-leak de esquema).** El esquema lo elige quien conoce la trampa → es un canal de leak no auditado: una columna `fecha_de_entrada_a_cohorte` susurra immortal time. Reglas: los esquemas se samplean de plantillas por dominio con independencia de las trampas instaladas, y todo mundo lleva columnas plausibles e irrelevantes. El probe del generador (§14) se extiende al nivel esquema. **Mismo tratamiento para las fuentes (v0.3)**: los nombres y descripciones de fuentes (lo que muestra `env.describe()`) se generan desde plantillas neutrales por el mismo proceso ciego — una fuente llamada `registro_de_sobrevivientes` susurra la trampa igual que una columna delatora — y el probe del generador se extiende también a nombres y descripciones de fuentes.
 
 Pipeline completo: semilla? → digestion → architect (motor+operadores+perillas) → piel → compilación (`world.py` + `sources.yaml`) → **rivales (§5)** → **batería (§6)** → brechas/certificados (§7) → validación → brief (writer ciego).
 
@@ -145,6 +146,8 @@ Rival = programa con la **misma firma** `sample(regime, n, seed)` que encarna un
 | (c) `prior_evocado` | panel de k LLMs frescos ve SOLO brief+schema (sin datos) → describe el mecanismo esperado → se compila a programa; se usa el consenso | "el libro de texto tiene razón" — necesario para mundos move 37 |
 | (d) `escalera_de_capacidad` | {lineal → GAM → boosting → red} fit a los datos accesibles bajo presupuesto estándar | fuerza bruta sin mecanismo, en niveles crecientes — malentendidos descubiertos por búsqueda (mitiga el techo de lo comprensible, ataque #14) |
 
+**Acceso a datos de los rivales por ajuste (v0.3).** Los rivales (a) y (d) ajustan sobre el pool observacional COMPLETO de todas las fuentes (n máximo declarado en `sources.yaml`, cero experimentos) — ancla fuerte y reproducible; el certificado de brecha mecanística ya rechaza los mundos donde ese acceso alcanza. El fit es seeded, y el rival (a) se persiste con **serialización canónica declarada**: su MDL entra en el ancla S_ingenuo (§9.1) y debe ser estable, o el ancla baila con decisiones de serialización.
+
 Cobertura imperfecta de rivales = ataque #13: se amortigua con la cola de auditoría de la batería y (futuro, OQ#11) generación adversarial de rivales.
 
 ---
@@ -156,8 +159,10 @@ Cobertura imperfecta de rivales = ataque #13: se amortigua con la cola de audito
    (~10^3 regímenes; ~20% off-support / combinaciones fuera del rango histórico)
 2. DESACUERDO: para cada r: disagreement(r) = media de D entre pares de
    {verdad, rivales} con n_mc muestras
-3. RELEVANCIA: stakes_relevance(r) declarada desde el brief
-   (variables de decisión y rangos de interés, en meta.json)
+3. RELEVANCIA: stakes_relevance(r) declarada en meta.json por el architect
+   (variables de decisión y rangos de interés; el brief la NARRA después —
+    la batería se construye antes del brief y el writer sigue ciego a batería
+    y rivales; v0.3 corrige la circularidad de la redacción anterior)
 4. PESO: w(r) ∝ stakes_relevance(r) × disagreement(r); normalizar
 5. SELECCIÓN: top-K (~160) + cola de auditoría (~40 uniformes, peso bajo)
 6. PERSISTIR: battery.json = [(w, r, seed)]
@@ -197,24 +202,31 @@ Forma de la batería como dial de tipo de caso: concentrada en decisiones (casos
 - **Ledger**: episodio termina por submit o quiebra. Ratio presupuesto/complejidad: dial central del curriculum.
 
 ### Validación de humo en submit (no es scoring)
-3 regímenes públicos triviales: columnas exactas, tipos, n, timeout, sin red. Falla → error devuelto, episodio sigue abierto.
+3 regímenes públicos triviales: columnas exactas, tipos, n, timeout, sin red, **lint de imports de la submission** (allowlist: stdlib seguro + numpy/pandas/scipy/sklearn; sin red/subprocess/filesystem). Falla → error devuelto, episodio sigue abierto. El mismo lint, aplicado por el validator de fábrica, rige para `world.py` (allowlist: numpy/scipy/stdlib; sin subprocess/os/red).
 
 ### Semántica de bordes
-Key de régimen ignorada = claim implícito de no-efecto (la batería lo cotiza). Crash/NaN en un ítem → D_MAX capeado en ese ítem. Seeds apareados + m repeticiones por ítem (varianza del reward).
+Key de régimen ignorada = claim implícito de no-efecto (la batería lo cotiza). Crash/NaN en un ítem → cap en **`D_MAX_item = 1.5 × D(verdad, nulo)` en ese ítem**: crashear paga estrictamente peor que no saber nada, para que el crash deliberado no sea una abstención trucha que esquiva el mecanismo del ensemble. Seeds apareados + m repeticiones por ítem (semántica precisa en §9).
 
 ---
 
 ## 9. Scoring — implementación `[EN DEBATE en elección de D y λ]`
 
 ```python
-def score(submission, world, battery, lam):
+def score(submission, world, battery, lam, m):
     fid = 0.0
-    for w, regime, seed in battery:
-        real = world.sample(regime, n=1000, seed=seed)
-        pred = run_sandboxed(submission, regime, n=1000, seed=seed)   # crash → D_MAX
-        fid -= w * energy_distance(standardize(real), standardize(pred))
-    return fid - lam * mdl(submission)        # mdl v0 = len(zlib.compress(code))
+    for w, regime, seed_w in battery:
+        real = world.sample(regime, n=1000, seed=seed_w)   # lado mundo: seed fijo por ítem,
+                                                           # compartido entre submissions (CRN)
+        d = 0.0
+        for j in range(m):                                 # m repeticiones lado maqueta
+            seed_m = derive_seed(seed_w, j)                # ≠ seed_w, determinístico
+            pred = run_sandboxed(submission, regime, n=1000, seed=seed_m)  # crash → D_MAX_item
+            d += energy_distance(standardize(real), standardize(pred)) / m
+        fid -= w * min(d, d_max_item(regime, seed_w))      # D_MAX_item = 1.5 × D(verdad, nulo)
+    return fid - lam * mdl(submission)   # mdl v0 = len(zlib(AST minificado)); ensembles: §9.2
 ```
+
+**Semántica de seeds (v0.3).** Lado mundo: un seed por ítem, persistido en `battery.json`, compartido entre todas las submissions — common random numbers: las comparaciones entre submissions y contra las anclas son de baja varianza. Lado maqueta: `derive_seed(seed_item, j)` por repetición, **nunca** el seed del mundo — si coincidieran, entregar `world.py` literal daría D=0 exacto y el techo S_verdad perdería su semántica de "solo ruido de muestreo" (bug del pseudocódigo v0.2). Producción scorea con seeds fijos (reproducible); L2 (§13) estima el ruido re-scoreando con B sets re-sampleados. **Nota para E2 (diferida)**: los seed-sets de batería rotan periódicamente durante el entrenamiento — con realizaciones eternamente fijas, la policy puede sobreajustarlas (leakage lento).
 
 - `D` default: **energy distance** (basada en muestras, propia). Alternativas en evaluación: MMD, CRPS por marginales. Estandarización por columna con estadísticas de la verdad.
 - Ensemble: `[(peso, code)]` → D sobre la mezcla muestreada según pesos.
@@ -230,13 +242,13 @@ La distancia cruda depende de dimensionalidad, escala de ruido y composición de
 R = clip( (S_agente − S_ingenuo) / (S_verdad − S_ingenuo), 0, 1 )
 ```
 
-`S_verdad` = score de entregar `world.py` mismo (techo: solo ruido de muestreo); `S_ingenuo` = score del rival (a). Beneficios: rewards comparables entre mundos, brechas adimensionales, dificultad interpretable. Caso borde: `S_verdad − S_ingenuo ≈ 0` → el mundo no discrimina → se rechaza (equivale a brecha mecanística ≈ 0).
+`S_verdad` = score de entregar `world.py` mismo (techo: solo ruido de muestreo, garantizado por la separación de seeds de §9); `S_ingenuo` = score del rival (a) en su serialización canónica (§5). **Las tres cantidades — S_verdad, S_ingenuo, S_agente — se computan con la MISMA función completa (fidelidad − λ·MDL)**: R(`world.py`) = 1 por construcción y la normalización es autoconsistente; una submission igual de fiel pero más corta que `world.py` puede superar el techo (clip en 1). Beneficios: rewards comparables entre mundos, brechas adimensionales, dificultad interpretable. Caso borde: `S_verdad − S_ingenuo ≈ 0` → el mundo no discrimina → se rechaza (equivale a brecha mecanística ≈ 0). Issue conocido de E2 (decisión diferida, Decision Log v0.10): el clip en 0 aplana el gradiente debajo del rival ingenuo — candidatos: ancla nula para curriculum temprano / variante sin clip para RL.
 
 ### 9.2 Detalles de contrato que importan
 
-- **Piso de varianza**: el apareamiento de seeds alinea el lado del mundo pero NO la aleatoriedad interna de la maqueta del agente → varianza irreducible que solo bajan las m repeticiones (costo total de scoring: K × n × m por episodio; medir CV en el primer slice).
+- **Piso de varianza**: el apareamiento de seeds alinea el lado del mundo pero NO el lado maqueta (`derive_seed`, §9) → varianza irreducible que solo bajan las m repeticiones (costo total de scoring: K × n × m por episodio; medir CV en el primer slice y reportar la descomposición lado-mundo / solo-lado-maqueta).
 - **Techo de tiempo por llamada** de `model()`: una maqueta lenta multiplica el costo de scoring ×K.
-- **MDL sobre AST minificado**, no zlib crudo (anti code-golf).
+- **MDL v0 = `len(zlib.compress(ast_minify(code)))`** (anti code-golf; resuelve la contradicción zlib-crudo vs AST de v0.2). **Ensembles: `mdl = len(zlib.compress(concat(miembros minificados, orden canónico)))`** — la estructura compartida comprime una sola vez: un ensemble de variantes (incertidumbre honesta sobre parámetros/mecanismos) paga ~un miembro; uno de programas no relacionados paga completo. Resuelve la tensión MDL-vs-ensemble sin maquinaria extra (Decision Log v0.10).
 - Energy distance con columnas mixtas (categóricas + continuas): codificación declarada y fija.
 
 ---
@@ -281,8 +293,8 @@ Contenedor de casos (§1) + harness (§8) + scorer (§9) + constructor de bater�
 La escalera E1→E4 (NORTH_STAR §6) valida constructo e hipótesis; estos niveles validan que la maquinaria mide algo *antes*:
 
 - **L0 — Tests de contrato**: unidades/semántica de regímenes entre mundo y maqueta (un error de escala que no crashea es un corruptor mudo); **sandbox red-team** (tests que intentan activamente leer `world.py`/`battery.json` desde el episodio y desde la submission, y deben fallar); **test de CI cero-LLM en el reward path** (el build falla si se viola).
-- **L1 — Escalera de verdades degradadas** (aceptación obligatoria por mundo, automática): se scorea una secuencia de submissions de calidad conocida decreciente — `world.py` exacto → verdad con parámetros perturbados → verdad con un mecanismo ablado → gemelo inocente → ajuste ingenuo → modelo nulo — y el score DEBE ordenarlas con márgenes declarados. Si no las ordena, la batería de ese mundo está rota. Es el certificado de monotonía y el detector automático de rivales débiles (ataque #13).
-- **L2 — Protocolo de varianza del reward**: la misma submission scoreada R veces → CV objetivo declarado; medir en el primer slice y ajustar K, n, m hasta cumplirlo. Sin esto, RL aprende ruido.
+- **L1 — Escalera de verdades degradadas** (aceptación obligatoria por mundo, automática): se scorea una secuencia de submissions de calidad conocida — `world.py` exacto, verdad con parámetros perturbados, verdad con un mecanismo ablado, gemelo inocente, ajuste ingenuo, modelo nulo. **Forma del certificado en producción (v0.3): monotonía-por-eje + extremos** — `world.py` > cada rival > nulo, y dentro de cada eje de degradación, perturbación creciente ⇒ score no-creciente. NO se exige orden total entre peldaños heterogéneos: no está garantizado teóricamente, y tunear las degradaciones hasta que el orden pase sería autoría silenciosa — exactamente lo que L1 debe detectar. El **orden total** se usa solo como test de aceptación del scorer sobre el dummy canónico del Slice 1 (perillas elegidas para que valga). Margen inicial: cada separación exigida ≥5% del rango (S_verdad − S_nulo); modelo nulo v0 = marginales independientes de la verdad. Valores empíricos, ajustables (Decision Log v0.10). Si el certificado falla, la batería de ese mundo está rota. Es el detector automático de rivales débiles (ataque #13).
+- **L2 — Protocolo de varianza del reward**: con seeds de producción fijos el score es determinístico; el ruido relevante es la dependencia del azar de los seeds elegidos. Protocolo (v0.3): re-scorear con B sets de seeds re-sampleados (lado mundo y lado maqueta) la submission del **peldaño medio** de la escalera (donde el ruido más confunde) → **CV objetivo < 5% sobre R normalizado** (la escala cruda varía por mundo), reportando además el **CV de S_verdad** (denominador de R) y la **descomposición lado-mundo / solo-lado-maqueta** (mundo fijo, variando j). Medir en el primer slice junto con el costo K×n×m; ajustar K, n, m hasta cumplir. Sin esto, RL aprende ruido.
 - **L3 — E1** (instrumento): NORTH_STAR §6 — incluye mundos de control, baseline humano, auditoría humana de baterías, validez convergente/discriminante externa.
 - **L4 — E2/E3** (entrenamiento y abstracción). **L5 — E4** (transfer real).
 
@@ -301,4 +313,4 @@ La escalera E1→E4 (NORTH_STAR §6) valida constructo e hipótesis; estos nivel
 11. Probe "aprendió al generador": clasificador que intente predecir el operador instalado desde el brief/datos superficiales — alarma complementaria a E3 contra tells del generador.
 12. Pipeline de minado de semillas: formato de la cola (NTSB/EIS/obs→RCT), criterios de priorización, y el trigger "moraleja inexpresable → operador nuevo".
 13. Diseñador greedy-EIG por formalismo: maquinaria compartida entre proxy de adaptividad (§7) y oráculo de valor v0 — definir alcance mínimo.
-14. Márgenes de la escalera de verdades degradadas (L1) y CV objetivo (L2): valores iniciales y procedimiento de ajuste.
+14. Márgenes de la escalera (L1) y CV objetivo (L2): valores iniciales fijados (5% del rango; CV < 5% sobre R — Decision Log v0.10); queda abierto el procedimiento de ajuste empírico.
