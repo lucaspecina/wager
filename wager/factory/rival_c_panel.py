@@ -11,6 +11,11 @@ LLMs are allowed here (factory): these programs are frozen artifacts produced
 before any episode, never in the reward path.
 """
 
+from typing import Callable
+
+import numpy as np
+import pandas as pd
+
 from wager.agent.cells import extract_cell
 from wager.agent.llm_client import FoundryChat
 from wager.contracts.world import Regime
@@ -64,6 +69,29 @@ def compile_panel_member(
             return {"code": code, "repairs": attempt, "tokens": chat.usage.total_tokens}
         prompt = f"Your program failed validation: {err}\nFix it and resend the FULL program."
     return {"code": None, "repairs": max_repairs, "tokens": chat.usage.total_tokens, "last_error": err}
+
+
+def ensemble_callable(ensemble: list[tuple[float, str]]) -> Callable:
+    """An in-process sample(regime, n, seed) that draws from the k compiled panel
+    members by weight (equal weights v0). The members passed lint + schema smoke."""
+    fns = []
+    for _, code in ensemble:
+        ns: dict = {}
+        exec(code, ns)  # noqa: S102  (factory artifact, lint+smoke passed)
+        fns.append(ns["model"])
+    weights = np.array([w for w, _ in ensemble], dtype=float)
+    weights = weights / weights.sum()
+
+    def sample(regime, n, seed):
+        rng = np.random.default_rng(seed)
+        counts = rng.multinomial(n, weights)
+        parts = []
+        for fn, c in zip(fns, counts):
+            if c > 0:
+                parts.append(fn(regime, int(c), int(rng.integers(0, 2**31 - 1))))
+        return pd.concat(parts, ignore_index=True)
+
+    return sample
 
 
 def derive_rival_c(

@@ -14,8 +14,11 @@ the rival anchors so they compare across worlds:
 
 from typing import Callable
 
+import numpy as np
+
 from wager.contracts import ScoringParams
-from wager.reward.scorer import WorldSide, score_callable
+from wager.reward.scorer import WorldSide, regime_to_namespace, score_callable
+from wager.reward.seeds import derive_seed
 
 
 def _r(s: float, s_truth: float, s_naive: float) -> float:
@@ -32,11 +35,19 @@ def compute_certificates(
     associational_rivals: list[tuple[str, Callable]],
     world_side: WorldSide,
     params: ScoringParams,
+    prior_rival: Callable | None = None,
 ) -> dict:
     """theory_gap: truth vs the best NO-LATENT model (fit with full data access,
     incl. interventions). mechanistic_gap: truth vs the best ASSOCIATIONAL model
     (OBSERVATIONAL data only -- 'what curve-fitting the data gives'; ARCHITECTURE
-    §7). The two references differ in DATA ACCESS, not just structure."""
+    §7). prior_gap: truth vs the prior-evoked rival (c) -- low => the prior already
+    knows the world (contamination, attack #16). The references differ in DATA
+    ACCESS, not just structure.
+
+    Note (Decision Log v0.19): in R units mechanistic_gap == R(mechanistic
+    reference) because naive is the 0 anchor; the substantive 'does this world
+    discriminate' measurement is the RAW denominator s_truth - s_naive vs the
+    reward noise floor (report `denom_raw`, compare to the L2 CV)."""
     s_truth = score_callable(world_sample, world_side, params)
     s_naive = score_callable(naive_rival, world_side, params)
     s_no_latent = score_callable(no_latent_rival, world_side, params)
@@ -48,16 +59,56 @@ def compute_certificates(
 
     assoc = {"naive": s_naive, **assoc_scores}
     best_assoc_name = max(assoc, key=lambda k: assoc[k])
-
-    return {
+    out = {
         "s_truth": s_truth,
         "s_naive": s_naive,
+        "denom_raw": s_truth - s_naive,  # substantive discrimination scale
         "s_no_latent": s_no_latent,
         "R_no_latent": R(s_no_latent),
         "R_naive": R(s_naive),
         "R_associational": {k: R(v) for k, v in assoc_scores.items()},
-        # certificates (R units = fraction of the truth-naive range)
         "theory_gap": _r(s_no_latent, s_truth, s_naive),
         "mechanistic_gap": _r(assoc[best_assoc_name], s_truth, s_naive),
         "best_associational": best_assoc_name,
     }
+    if prior_rival is not None:
+        s_prior = score_callable(prior_rival, world_side, params)
+        out["s_prior"] = s_prior
+        out["R_prior"] = R(s_prior)
+        out["prior_gap"] = _r(s_prior, s_truth, s_naive)
+    return out
+
+
+def per_regime_reading(
+    rival_fn: Callable, world_sample: Callable, world_side: WorldSide, params: ScoringParams
+) -> list[dict]:
+    """Per-item truth-vs-rival reading (means/std/corr + distance + crash flag).
+    Applied SYMMETRICALLY to confirmatory and anomalous certificate values
+    (Decision Log v0.19): investigating only contradictions is confirmation bias."""
+    rows = []
+    for idx, item in enumerate(world_side.battery.items):
+        ns = regime_to_namespace(item.regime)
+        truth_side = world_side.truth_sides[idx]
+        d_max = world_side.d_maxes[idx]
+        try:
+            pred = rival_fn(ns, params.n_samples, derive_seed(item.seed_world, 0))
+            dist = truth_side.distance_to(pred)
+            crashed = False
+        except Exception:  # noqa: BLE001
+            pred, dist, crashed = None, d_max, True
+        real = world_sample(ns, params.n_samples, item.seed_world)
+        row = {
+            "idx": idx,
+            "weight": item.weight,
+            "dose": item.regime.config.get("dose"),
+            "cohort": item.regime.context.get("cohort", 0.0),
+            "distance": float(dist),
+            "d_max": float(d_max),
+            "crashed": crashed,
+        }
+        if not crashed:
+            for col in world_side.columns:
+                row[f"truth_{col}_mean"] = float(real[col].mean())
+                row[f"rival_{col}_mean"] = float(pred[col].mean())
+        rows.append(row)
+    return rows
