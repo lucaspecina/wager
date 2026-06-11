@@ -10,6 +10,7 @@ from pathlib import Path
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Literal
 
+from wager.contracts.episode import EpisodeConfig
 from wager.contracts.world import ColumnSpec, Regime
 
 
@@ -74,6 +75,7 @@ class CaseMeta(BaseModel):
     operators: list[OperatorInstance]
     stakes: StakesSpec
     scoring: ScoringParams
+    episode: EpisodeConfig | None = None
     prior_reliability: float | None = None
 
     @classmethod

@@ -6,7 +6,7 @@ Mechanism (all three structural equations are mechanism layer; the confounded
 dose assignment is the world's own assignment process, which do(dose)
 replaces - Decision Log v0.11):
 
-    severity ~ Normal(severity_mean, 1)            # latent, never observed
+    severity ~ Normal(cohort, 1)                   # latent, never observed
     dose     := clip(2.0 + 1.5*severity + eta, 0, 10)   # natural assignment
                 (replaced by the constant regime.config["dose"] under do())
     outcome  := 1.0 * sat(dose) - 2.0 * severity + eps
@@ -46,8 +46,8 @@ def _saturating(dose):
 
 def sample(regime, n, seed):
     rng = np.random.default_rng(seed)
-    severity_mean = regime.context.get("severity_mean", 0.0)
-    severity = rng.normal(severity_mean, 1.0, n)
+    cohort = regime.context.get("cohort", 0.0)
+    severity = rng.normal(cohort, 1.0, n)
     if "dose" in regime.config:
         dose = np.full(n, float(regime.config["dose"]))
     else:

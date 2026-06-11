@@ -45,11 +45,31 @@
     ]
   },
   "scoring": {
-    "lambda_mdl": 0.00010263207256164871,
+    "lambda_mdl": 0.00010219626758261836,
     "lambda_provisional": true,
     "n_samples": 1000,
     "m_reps": 2,
     "model_call_timeout_s": 10.0
+  },
+  "episode": {
+    "budget": 15000,
+    "observe_sources": {
+      "registros_clinicos_2019_2023": {
+        "cost_per_row": 1.0,
+        "config": {},
+        "context": {"cohort": 0.0}
+      }
+    },
+    "experiment": {"cost_fixed": 100.0, "cost_per_row": 2.0},
+    "smoke_regimes": [
+      {"config": {"dose": 1.0}, "context": {"cohort": 0.0}, "horizon": null},
+      {"config": {"dose": 5.0}, "context": {"cohort": 0.0}, "horizon": null},
+      {"config": {}, "context": {"cohort": 0.0}, "horizon": null}
+    ],
+    "control_surface": {
+      "settable": {"dose": {"low": 0.0, "high": 10.0, "unit": "mg"}},
+      "context": {"cohort": "population baseline level (a property of who arrives; targetable in experiments, not freely set per-patient)"}
+    }
   },
   "prior_reliability": null
 }

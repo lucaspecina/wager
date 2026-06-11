@@ -28,8 +28,8 @@ def _saturating(dose):
 
 def model(regime, n, seed):
     rng = np.random.default_rng(seed)
-    severity_mean = regime.context.get("severity_mean", 0.0)
-    severity = rng.normal(severity_mean, 1.0, n)
+    cohort = regime.context.get("cohort", 0.0)
+    severity = rng.normal(cohort, 1.0, n)
     if "dose" in regime.config:
         dose = np.full(n, float(regime.config["dose"]))
     else:

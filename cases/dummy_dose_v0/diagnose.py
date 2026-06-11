@@ -54,7 +54,7 @@ def main() -> None:
     print("per-item regime summary:")
     for i, item in enumerate(battery.items):
         cfg = item.regime.config.get("dose", "obs")
-        ctx = item.regime.context.get("severity_mean", 0.0)
+        ctx = item.regime.context.get("cohort", 0.0)
         print(f"  [{i:2d}] w={item.weight:.1f} dose={cfg} sev_mean={ctx} dmax={ws.d_maxes[i]:.4f}")
 
     print("\nraw scores and R:")

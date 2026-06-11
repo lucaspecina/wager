@@ -30,7 +30,7 @@ def observational_pool():
     from wager.factory.case_loader import load_world_sample
 
     sample = load_world_sample(CASE_DIR)
-    regime = SimpleNamespace(config={}, context={"severity_mean": 0.0}, horizon=None)
+    regime = SimpleNamespace(config={}, context={"cohort": 0.0}, horizon=None)
     return sample(regime, POOL_N, POOL_SEED)
 
 
@@ -110,8 +110,8 @@ def _saturating(dose):
 
 def model(regime, n, seed):
     rng = np.random.default_rng(seed)
-    severity_mean = regime.context.get("severity_mean", 0.0)
-    severity = rng.normal(severity_mean, 1.0, n)
+    cohort = regime.context.get("cohort", 0.0)
+    severity = rng.normal(cohort, 1.0, n)
     if "dose" in regime.config:
         dose = np.full(n, float(regime.config["dose"]))
     else:
@@ -162,8 +162,8 @@ def _linear_response(dose):
 
 def model(regime, n, seed):
     rng = np.random.default_rng(seed)
-    severity_mean = regime.context.get("severity_mean", 0.0)
-    severity = rng.normal(severity_mean, 1.0, n)
+    cohort = regime.context.get("cohort", 0.0)
+    severity = rng.normal(cohort, 1.0, n)
     if "dose" in regime.config:
         dose = np.full(n, float(regime.config["dose"]))
     else:
@@ -192,7 +192,7 @@ RATIONALE (rung 3 -> 4): rung 3 has the CORRECT causal coefficients and only a
 degraded functional form - it is wrong only where curvature matters. This rung
 has the WRONG causal effect (biased by indication) plus no severity pathway:
 it mispredicts outcome in EVERY do(dose) regime, including mid in-support
-where the battery mass sits, and is blind to severity_mean context shifts.
+where the battery mass sits, and is blind to cohort context shifts.
 
 {header}
 """

@@ -11,6 +11,13 @@ from wager.contracts.case import (
     ScoringParams,
     StakesSpec,
 )
+from wager.contracts.episode import (
+    EpisodeConfig,
+    ExperimentCost,
+    ExperimentDesign,
+    SourceConfig,
+    SubmitResult,
+)
 from wager.contracts.reports import (
     AnchorSet,
     ItemScore,
@@ -35,6 +42,9 @@ __all__ = [
     "CaseMeta",
     "ColumnSpec",
     "ControlSurface",
+    "EpisodeConfig",
+    "ExperimentCost",
+    "ExperimentDesign",
     "ItemScore",
     "KnobSpec",
     "LadderReport",
@@ -44,7 +54,9 @@ __all__ = [
     "ScoreReport",
     "ScoringCost",
     "ScoringParams",
+    "SourceConfig",
     "SourceSpec",
     "StakesSpec",
+    "SubmitResult",
     "VarianceReport",
 ]
