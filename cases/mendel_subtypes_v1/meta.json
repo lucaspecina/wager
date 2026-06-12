@@ -1,0 +1,132 @@
+{
+  "case_id": "mendel_subtypes_v1",
+  "suite": "mendel",
+  "columns": [
+    {
+      "name": "dose",
+      "dtype": "float",
+      "unit": "mg",
+      "description": "administered dose (settable 0-10)"
+    },
+    {
+      "name": "marker",
+      "dtype": "float",
+      "unit": null,
+      "description": "noisy per-patient biomarker; ABSENT from cheap records, revealed only by buy_instrument"
+    },
+    {
+      "name": "outcome",
+      "dtype": "float",
+      "unit": null,
+      "description": "recovery score (lower = worse; below -5 = harm)"
+    }
+  ],
+  "operators": [
+    {
+      "name": "heterogeneidad_latente",
+      "layer": "mechanism",
+      "knobs": {
+        "effect_responder": 1.5,
+        "effect_paradox": -1.5
+      },
+      "ablation": {
+        "effect_paradox": 1.5
+      }
+    },
+    {
+      "name": "confounding_por_subtipo",
+      "layer": "mechanism",
+      "knobs": {
+        "sub_coef_dose": 2.5
+      },
+      "ablation": {
+        "sub_coef_dose": 0.0
+      }
+    }
+  ],
+  "stakes": {
+    "narrative": "A clinic must set a single dose for incoming cohorts whose subtype composition may differ from the one standing population in its records; a poor outcome (recovery below the harm line) is far costlier than a forgone gain, so the harmful tail under a deliberately set dose is what must be priced -- including for populations unlike the one on record.",
+    "decision_variables": [
+      "dose"
+    ],
+    "context_relevance": {
+      "mix_logit": {"center": 0.0, "sd": 1.0, "out_of_record_above_abs": 1.5, "out_of_record_floor": 0.3}
+    },
+    "decision_relevance": {},
+    "functionals": [
+      {
+        "name": "exceedance",
+        "column": "outcome",
+        "threshold": -5.0,
+        "direction": "below",
+        "brief_clause": "A poor outcome -- a recovery score below the harm line of -5 -- is far costlier than a forgone gain"
+      }
+    ]
+  },
+  "scoring": {
+    "lambda_mdl": 0.00010128773858650133,
+    "lambda_provisional": true,
+    "n_samples": 1000,
+    "m_reps": 2,
+    "model_call_timeout_s": 10.0
+  },
+  "episode": {
+    "budget": 20000,
+    "observe_sources": {
+      "registros_clinicos": {
+        "cost_per_row": 1.0,
+        "config": {},
+        "context": {
+          "mix_logit": 0.0
+        }
+      }
+    },
+    "experiment": {
+      "cost_fixed": 100.0,
+      "cost_per_row": 2.0
+    },
+    "smoke_regimes": [
+      {
+        "config": {
+          "dose": 2.0
+        },
+        "context": {
+          "mix_logit": 0.0
+        },
+        "horizon": null
+      },
+      {
+        "config": {
+          "dose": 8.0
+        },
+        "context": {
+          "mix_logit": 0.0
+        },
+        "horizon": null
+      },
+      {
+        "config": {},
+        "context": {
+          "mix_logit": 0.0
+        },
+        "horizon": null
+      }
+    ],
+    "control_surface": {
+      "settable": {
+        "dose": {
+          "low": 0.0,
+          "high": 10.0,
+          "unit": "mg"
+        }
+      },
+      "context": {
+        "mix_logit": "population subtype-mix on a logit scale; the historical records sit at one value (0); incoming cohorts may differ (targetable in experiments, not set per-patient)"
+      },
+      "instruments": {
+        "marker": "noisy per-patient biomarker assay; not in the cheap records, revealed by buy_instrument"
+      }
+    }
+  },
+  "prior_reliability": null
+}

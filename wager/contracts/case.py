@@ -48,11 +48,33 @@ class OperatorInstance(BaseModel):
     ablation: dict[str, float] = Field(default_factory=dict)
 
 
+class FunctionalSpec(BaseModel):
+    """A decision functional scored ON TOP of energy distance (ARCHITECTURE §9.3,
+    Decision Log v0.26/v0.27). Each instance MUST cite the verbatim brief clause
+    that promises it (traceability rule: the brief promises -> the functional
+    encodes; if the brief is silent the CASE is fixed, the functional is never
+    invented to fabricate a gap). Computed from samples, server-side, zero-LLM."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    name: Literal["exceedance", "quantile", "subgroup_mean", "expected_loss"]
+    column: str = "outcome"
+    threshold: float | None = None  # exceedance / expected_loss harm threshold
+    direction: Literal["below", "above"] = "below"
+    tau: float | None = None  # quantile level in (0,1)
+    subgroup: dict[str, float] | None = None  # subgroup_mean: regime/context filter
+    brief_clause: str  # verbatim clause from the brief that promises this (traceability)
+
+
 class StakesSpec(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     narrative: str
     decision_variables: list[str]
+    # decision functionals (ARCHITECTURE §9.3): the score is energy + Σ c_F·|F(pred)
+    # − F(real)|. Prefer ONE expected_loss when the decision is sharp (v0.27 Q6).
+    # Empty -> combined score ≡ energy score (identity by construction; the dummy).
+    functionals: list[FunctionalSpec] = Field(default_factory=list)
     # decision-relevant population mix declared from the brief: per context var,
     # {"center", "sd"} of the populations the decision cares about. The battery's
     # stakes_relevance MUST modulate context with this (not be flat); a flat
