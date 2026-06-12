@@ -15,25 +15,20 @@ CASE_DIR = Path(__file__).parent
 sys.path.insert(0, str(CASE_DIR))
 
 from wager.factory.battery_builder import build_battery
-from wager.factory.case_loader import load_ladder, load_meta, load_world_module, load_world_sample
-from wager.factory.derive_rivals import (
-    best_no_latent, experimental_grid, observational_pool, rival_naive, rival_twin,
-)
+from wager.factory.case_loader import load_ladder, load_meta, load_world_sample
+from wager.factory.derive_rivals import build_standard_rivals
+
+DEDUP_RADIUS = 1.2  # hardened config (Decision Log v0.24): diversity radius
 
 
 def main():
     meta = load_meta(CASE_DIR)
     ws = load_world_sample(CASE_DIR)
     cols = meta.column_names
-    pool = observational_pool(ws, list(meta.episode.observe_sources.values())[0], 4000, 50001)
-    train = experimental_grid(ws, "dose", list(range(0, 11)), [-1.5, 0.0, 1.5], 300, 60001)
-    wmod = load_world_module(CASE_DIR)
-    conf = next(o for o in meta.operators if o.name == "confounding_por_indicacion")
-    twin = rival_twin(wmod.mechanism, wmod.PARAMS, conf.ablation, pool)
+    rivals, pool, train = build_standard_rivals(CASE_DIR, ws, meta)  # full capacity ladder + twins
     nl = {}
     exec(dict(load_ladder(CASE_DIR))["rung_6_null"], nl)
-    bat = build_battery(ws, [rival_naive(pool), best_no_latent(train, pool), twin], nl["model"],
-                        cols, meta.stakes)
+    bat = build_battery(ws, rivals, nl["model"], cols, meta.stakes, dedup_radius=DEDUP_RADIUS)
 
     items = sorted(bat.items, key=lambda it: -it.weight)
     print("ALL battery items (sorted by weight):")

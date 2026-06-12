@@ -95,9 +95,18 @@ def stakes_relevance(regime: Regime, stakes: StakesSpec) -> float:
         if var in regime.config and regime.config[var] >= spec.get("out_of_record_above", float("inf")):
             rel *= spec.get("out_of_record_weight", 1.0)
     for var, spec in stakes.context_relevance.items():
-        val = regime.context.get(var, spec.get("center", 0.0))
+        center = spec.get("center", 0.0)
+        val = regime.context.get(var, center)
         sd = spec.get("sd", 1.0) or 1.0
-        rel *= float(np.exp(-0.5 * ((val - spec.get("center", 0.0)) / sd) ** 2))
+        g = float(np.exp(-0.5 * ((val - center) / sd) ** 2))
+        # out-of-record TAIL (Decision Log v0.24): the brief wants populations
+        # outside the record too -> a floor so atypical populations are not
+        # Gaussian-killed (parallel to the dose out_of_record fix). The Gaussian
+        # still makes typical populations dominate.
+        thr = spec.get("out_of_record_above_abs")
+        if thr is not None and abs(val - center) >= thr:
+            g = max(g, spec.get("out_of_record_floor", 0.0))
+        rel *= g
     return rel
 
 
@@ -112,6 +121,7 @@ def build_battery(
     k_audit: int = 4,
     n_mc: int = 400,
     seed: int = 314159,
+    dedup_radius: float = 0.0,
 ) -> Battery:
     rng = np.random.default_rng(seed)
     candidates = sample_candidates(rng, n_candidates)
@@ -130,16 +140,39 @@ def build_battery(
             return "obs"
         return f"dose{int(min(r.config['dose'], 9.999) // 2.5)}"
 
+    def _too_close(r: Regime, chosen: list) -> bool:
+        # diversity/dedup radius in (dose, cohort) space (Decision Log v0.24):
+        # avoid near-duplicate probes (e.g. the dose 1.9-2.9 cluster)
+        if dedup_radius <= 0:
+            return False
+        d = r.config.get("dose", -5.0)
+        c = r.context.get("cohort", 0.0)
+        for _, rr in chosen:
+            dd = rr.config.get("dose", -5.0)
+            cc = rr.context.get("cohort", 0.0)
+            if ((d - dd) ** 2 + (c - cc) ** 2) ** 0.5 < dedup_radius:
+                return True
+        return False
+
     by_stratum: dict[str, list] = {}
     for w, r in sorted(scored, key=lambda t: -t[0]):
         by_stratum.setdefault(_stratum(r), []).append((w, r))
     top = []
-    rnd = 0
-    while len(top) < k_top and any(rnd < len(v) for v in by_stratum.values()):
+    cursor = {s: 0 for s in by_stratum}
+    progress = True
+    while len(top) < k_top and progress:
+        progress = False
         for s in sorted(by_stratum):
-            if rnd < len(by_stratum[s]) and len(top) < k_top:
-                top.append(by_stratum[s][rnd])
-        rnd += 1
+            items_s = by_stratum[s]
+            while cursor[s] < len(items_s):
+                cand = items_s[cursor[s]]
+                cursor[s] += 1
+                if not _too_close(cand[1], top):
+                    top.append(cand)
+                    progress = True
+                    break
+            if len(top) >= k_top:
+                break
     chosen = {id(t[1]) for t in top}
     rest = [t for t in scored if id(t[1]) not in chosen]
     audit_idx = rng.choice(len(rest), size=min(k_audit, len(rest)), replace=False) if rest else []

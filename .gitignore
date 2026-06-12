@@ -218,8 +218,15 @@ __marimo__/
 .streamlit/secrets.toml
 
 # WAGER
-.env                  # Foundry credentials (solver side); never committed
-.env.*                # any env variant with secrets
-scratch/              # throwaway probes + commit-message files
-reports/              # generated human-inspection HTML (regenerable)
-cases/*/battery_derived.json  # pre-audit staging battery (becomes battery.json on approval)
+# NOTE: gitignore does NOT support inline comments -- a '#' mid-line becomes part
+# of the pattern, silently breaking the ignore. Keep every comment on its own line.
+# Foundry credentials (solver side); never committed:
+.env
+# any env variant with secrets:
+.env.*
+# throwaway probes + commit-message files:
+scratch/
+# generated human-inspection HTML (regenerable):
+reports/
+# pre-audit staging battery (becomes battery.json on approval):
+cases/*/battery_derived.json

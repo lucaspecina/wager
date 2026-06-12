@@ -17,12 +17,10 @@ sys.path.insert(0, str(CASE_DIR))
 from solvers import solver_canonical, solver_naive  # noqa: E402
 
 from wager.factory.case_loader import (  # noqa: E402
-    load_battery, load_ladder, load_meta, load_world_module, load_world_sample, load_world_source,
+    load_battery, load_ladder, load_meta, load_world_sample, load_world_source,
 )
 from wager.factory.battery_builder import build_battery  # noqa: E402
-from wager.factory.derive_rivals import (  # noqa: E402
-    best_no_latent, experimental_grid, observational_pool, rival_naive, rival_twin,
-)
+from wager.factory.derive_rivals import build_standard_rivals  # noqa: E402
 from wager.harness.case_episode import build_world_server  # noqa: E402
 from wager.harness.env import Env  # noqa: E402
 from wager.reward.episode_score import score_episode_submission  # noqa: E402
@@ -54,19 +52,12 @@ def main():
     cols = meta.column_names
     params = meta.scoring
 
-    pool = observational_pool(world_sample, list(meta.episode.observe_sources.values())[0], 4000, 50001)
-    train = experimental_grid(world_sample, "dose", list(range(0, 11)), [-1.5, 0.0, 1.5], 300, 60001)
-    # disagreement set: naive (believes data), best no-latent, and the innocent
-    # TWIN (confounding ablated + refit) -- the twin fails IN-SUPPORT, so the
-    # battery weighs the regimes where the trap bites, not only off-support
-    # extrapolation (Decision Log v0.20).
-    wmod = load_world_module(CASE_DIR)
-    conf = next(op for op in meta.operators if op.name == "confounding_por_indicacion")
-    twin = rival_twin(wmod.mechanism, wmod.PARAMS, conf.ablation, pool)
-    rivals = [rival_naive(pool), best_no_latent(train, pool), twin]
+    # hardened canonical config (Decision Log v0.24): naive + FULL capacity ladder
+    # (linear+GBM) + twin per mechanism op, with dedup_radius=1.2 for diversity.
+    rivals, pool, train = build_standard_rivals(CASE_DIR, world_sample, meta)
     nl_ns: dict = {}
     exec(dict(ladder)["rung_6_null"], nl_ns)  # null model for the D_MAX disagreement cap
-    derived = build_battery(world_sample, rivals, nl_ns["model"], cols, meta.stakes)
+    derived = build_battery(world_sample, rivals, nl_ns["model"], cols, meta.stakes, dedup_radius=1.2)
 
     print("=" * 72)
     print("ACCEPTANCE (i) -- hand battery vs 100%-derived battery")

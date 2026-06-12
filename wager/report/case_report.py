@@ -118,13 +118,51 @@ def _coverage_map(bat) -> str:
     return t
 
 
-def sec_battery(bat) -> str:
+def _promises_checklist(meta, bat) -> str:
+    """Deterministic brief-promises checklist (Decision Log v0.24): every declared
+    stakes claim is ticked against the coverage. The human cross-checks against
+    the brief narrative (shown) to catch UNDECLARED promises -- the failure mode
+    that let 'populations outside the record' slip through."""
+    total = sum(it.weight for it in bat.items) or 1.0
+
+    def wfrac(pred):
+        return sum(it.weight for it in bat.items if pred(it)) / total
+
+    checks = []
+    st = meta.stakes
+    for v in st.decision_variables:
+        f = wfrac(lambda it, v=v: v in it.regime.config)
+        checks.append((f"the decision sets <code>{esc(v)}</code>", f > 0.05, f"{f:.0%} weight"))
+    for var, spec in st.decision_relevance.items():
+        thr = spec.get("out_of_record_above")
+        if thr is not None:
+            f = wfrac(lambda it, var=var, thr=thr: it.regime.config.get(var, -1e9) >= thr)
+            checks.append((f"<code>{esc(var)}</code> outside the historical record (&ge; {thr})", f > 0.05, f"{f:.0%} weight"))
+    for var, spec in st.context_relevance.items():
+        thr = spec.get("out_of_record_above_abs")
+        if thr is not None:
+            f = wfrac(lambda it, var=var, thr=thr: abs(it.regime.context.get(var, 0.0)) >= thr)
+            checks.append((f"populations with |<code>{esc(var)}</code>| &ge; {thr} (outside the record)", f > 0.05, f"{f:.0%} weight"))
+    rows = ""
+    for claim, ok, detail in checks:
+        mark = "<span class='ok'>&#10003;</span>" if ok else "<span class='bad'>&#10007;</span>"
+        rows += f"<tr><td>{mark}</td><td>{claim}</td><td>{esc(detail)}</td></tr>"
+    tbl = (f"<table><thead><tr><th></th><th>declared stakes promise</th><th>coverage</th></tr></thead>"
+           f"<tbody>{rows}</tbody></table>")
+    note = (f"<p class='note'>Cross-check these DECLARED promises against the brief narrative below "
+            f"(an undeclared promise will not appear here &mdash; that is the gap to look for):</p>"
+            f"<blockquote class='note'>{esc(meta.stakes.narrative)}</blockquote>")
+    return note + tbl
+
+
+def sec_battery(bat, meta) -> str:
     items = sorted(bat.items, key=lambda it: -it.weight)
     rows = [[i + 1, f"{it.weight:.3f}", _dose(it.regime),
              f"{it.regime.context.get('cohort', 0.0):+.2f}"] for i, it in enumerate(items)]
     note = ("<p class='note'>The secret exam: weighted held-out scenarios the submission is graded on. "
             "Weight concentrates where understanding the trap changes the prediction. The agent never sees it.</p>")
-    body = note + "<h3>Coverage map (the right audit lens)</h3>" + _coverage_map(bat)
+    body = note + "<h3>Brief-promises checklist (start the audit here)</h3>" + _promises_checklist(meta, bat)
+    body += "<h3>Coverage map (the right audit lens)</h3>" + _coverage_map(bat)
     body += "<h3>All items (by weight)</h3>" + table(["#", "weight", "dose", "cohort"], rows, num_cols={0, 1, 3})
     return section(f"The secret exam (battery, {len(items)} items)", body)
 
@@ -244,7 +282,7 @@ def build_report(case_dir: str | Path, trace_path: str | Path | None,
     head += "<p class='sub'>End-to-end human inspection: answer key &middot; agent view &middot; trajectory &middot; grading."
     head += f" &middot; battery: <b>{esc(bat_label)}</b></p>"
     body = (head + sec_overview(meta, trace) + sec_brief(case_dir) + sec_truth(case_dir, meta)
-            + sec_certificates(case_dir) + sec_battery(bat) + sec_episode(trace)
+            + sec_certificates(case_dir) + sec_battery(bat, meta) + sec_episode(trace)
             + sec_evaluation(case_dir, meta, trace, bat))
     return page(f"WAGER {meta.case_id}", body)
 

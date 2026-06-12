@@ -142,3 +142,24 @@ def best_no_latent(train: pd.DataFrame, pool: pd.DataFrame) -> Callable:
     """The best model restricted to functions of observables -- the THEORY-GAP
     reference (Decision Log v0.17). GBM conditioning outcome on observed marker."""
     return _fit_no_latent(train, pool, flexible=True)
+
+
+def build_standard_rivals(case_dir, world_sample: Callable, meta, n_pool=4000, n_train=300):
+    """The disagreement rival set the battery_builder weighs (Decision Log v0.24):
+    naive (a) + the FULL capacity ladder (d: linear + GBM, not just the best) +
+    an innocent twin (b) per declared mechanism operator. The full ladder is the
+    direct mitigation of rival-coverage blind spots (#13/#14) -- the battery then
+    weighs regions where brute-force-no-mechanism of ANY capacity fails.
+    Returns (rivals, pool, train)."""
+    from wager.factory.case_loader import load_world_module
+
+    source = list(meta.episode.observe_sources.values())[0]
+    pool = observational_pool(world_sample, source, n_pool, 50001)
+    train = experimental_grid(world_sample, "dose", list(range(0, 11)), [-1.5, 0.0, 1.5], n_train, 60001)
+    wmod = load_world_module(case_dir)
+    rivals = [rival_naive(pool)]
+    rivals += [fn for _, fn in capacity_ladder(train, pool)]  # linear + GBM (full d)
+    for op in meta.operators:
+        if op.layer == "mechanism" and op.ablation:
+            rivals.append(rival_twin(wmod.mechanism, wmod.PARAMS, dict(op.ablation), pool))
+    return rivals, pool, train
