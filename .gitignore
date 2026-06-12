@@ -219,4 +219,6 @@ __marimo__/
 
 # WAGER
 .env                  # Foundry credentials (solver side); never committed
+.env.*                # any env variant with secrets
 scratch/              # throwaway probes + commit-message files
+reports/              # generated human-inspection HTML (regenerable)

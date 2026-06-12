@@ -24,6 +24,10 @@ agent = [
     "openai>=1.40",
     "python-dotenv",
 ]
+# Human-inspection report generator (tooling; not in the reward path).
+report = [
+    "markdown",
+]
 
 [tool.setuptools.packages.find]
 include = ["wager*"]
