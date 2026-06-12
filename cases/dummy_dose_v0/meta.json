@@ -52,6 +52,9 @@
     ],
     "context_relevance": {
       "cohort": {"center": 0.0, "sd": 1.0}
+    },
+    "decision_relevance": {
+      "dose": {"out_of_record_above": 6.0, "out_of_record_weight": 2.0}
     }
   },
   "scoring": {

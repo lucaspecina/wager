@@ -58,6 +58,13 @@ class StakesSpec(BaseModel):
     # stakes_relevance MUST modulate context with this (not be flat); a flat
     # relevance lets off-support extremes dominate (Decision Log v0.22).
     context_relevance: dict[str, dict[str, float]] = Field(default_factory=dict)
+    # decision-VARIABLE value relevance declared from the brief: which values of a
+    # decision variable the decision cares about, beyond merely setting it. The
+    # dummy brief explicitly wants "doses outside the historical record" and the
+    # saturating region -> meta must encode that, or it tells a different story
+    # than the brief (Decision Log v0.23). Per var: {"out_of_record_above",
+    # "out_of_record_weight"} elevates the under-explored / costly region.
+    decision_relevance: dict[str, dict[str, float]] = Field(default_factory=dict)
 
 
 class ScoringParams(BaseModel):

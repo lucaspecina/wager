@@ -86,9 +86,14 @@ def disagreement_norm(
 
 
 def stakes_relevance(regime: Regime, stakes: StakesSpec) -> float:
-    """Declared relevance: full weight if the regime sets a decision variable,
-    times the population-mix density over context (NOT flat -- Decision Log v0.22)."""
+    """Declared relevance from the brief: full weight if the regime sets a decision
+    variable, times the decision-variable VALUE emphasis (e.g. doses outside the
+    historical record matter more -- Decision Log v0.23), times the population-mix
+    density over context (NOT flat -- Decision Log v0.22)."""
     rel = 1.0 if any(v in regime.config for v in stakes.decision_variables) else 0.4
+    for var, spec in stakes.decision_relevance.items():
+        if var in regime.config and regime.config[var] >= spec.get("out_of_record_above", float("inf")):
+            rel *= spec.get("out_of_record_weight", 1.0)
     for var, spec in stakes.context_relevance.items():
         val = regime.context.get(var, spec.get("center", 0.0))
         sd = spec.get("sd", 1.0) or 1.0
