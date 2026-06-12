@@ -35,16 +35,18 @@ def sample_candidates(rng, n: int, dose_lo=0.0, dose_hi=10.0) -> list[Regime]:
     return regimes
 
 
-DISAGREEMENT_CAP = 2.0  # standardized energy distance; beyond this two
-# distributions are already "very different" -- more does not add discrimination,
-# and uncapped extrapolation blowups (a rival far outside its support) would
-# crowd the top-K onto off-support regimes (Decision Log v0.20).
+D_MAX_FACTOR = 1.5  # D_MAX_item = 1.5 x D(truth, null), as in scoring
 
 
-def _disagreement(samplers: list[Callable], regime: Regime, columns: list[str], n_mc: int, seed: int) -> float:
+def _disagreement(
+    samplers: list[Callable], null_fn: Callable, regime: Regime,
+    columns: list[str], n_mc: int, seed: int,
+) -> float:
     """Mean pairwise energy distance among {truth, rivals} at this regime,
-    standardized by the truth sample's stats and CAPPED so no single rival's
-    extrapolation blowup dominates the weighting."""
+    standardized by the truth sample's stats and CAPPED at the per-regime
+    D_MAX = 1.5 x D(truth, null) -- the SAME universal cap as scoring (Decision
+    Log v0.21), so no single rival's distance can dominate the weights beyond the
+    'worse than knowing nothing' bound."""
     from types import SimpleNamespace
 
     ns = SimpleNamespace(config=dict(regime.config), context=dict(regime.context), horizon=regime.horizon)
@@ -56,19 +58,22 @@ def _disagreement(samplers: list[Callable], regime: Regime, columns: list[str], 
             draws.append(None)
     truth = draws[0]
     mu, sd = truth.mean(0), truth.std(0)
-    sd[sd == 0] = 1.0
+    sd = np.where(sd < 1e-8 * (np.abs(mu) + 1.0), 1.0, sd)  # relative tol (v0.21)
     z = [None if d is None else (d - mu) / sd for d in draws]
+    z_null = (null_fn(ns, n_mc, seed + 99)[columns].to_numpy(dtype=float) - mu) / sd
+    d_max = D_MAX_FACTOR * energy_distance(z[0], z_null)
     dists = []
     for a in range(len(z)):
         for b in range(a + 1, len(z)):
             if z[a] is not None and z[b] is not None:
-                dists.append(min(energy_distance(z[a], z[b]), DISAGREEMENT_CAP))
+                dists.append(min(energy_distance(z[a], z[b]), d_max))
     return float(np.mean(dists)) if dists else 0.0
 
 
 def build_battery(
     world_sample: Callable,
     rivals: list[Callable],
+    null_fn: Callable,
     columns: list[str],
     decision_vars: list[str],
     n_candidates: int = 400,
@@ -83,7 +88,7 @@ def build_battery(
 
     scored = []
     for i, r in enumerate(candidates):
-        dis = _disagreement(samplers, r, columns, n_mc, seed + 1000 * i)
+        dis = _disagreement(samplers, null_fn, r, columns, n_mc, seed + 1000 * i)
         # relevance from the declared stakes: decision-relevant regimes (those that
         # set a decision var) weigh full; AND a taper away from the historical
         # support (cohort ~ 0) so off-support extreme regimes -- where a rival

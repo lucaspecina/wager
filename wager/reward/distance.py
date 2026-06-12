@@ -33,7 +33,14 @@ class TruthSide:
         self.columns = columns
         self.mean = arr.mean(axis=0)
         self.std = arr.std(axis=0)
-        self.std[self.std == 0.0] = 1.0
+        # Clamp near-zero std with a RELATIVE tolerance, not == 0: a controlled
+        # variable (e.g. dose under do(dose=d)) is constant, but float roundoff
+        # makes its std ~1e-15 (not exactly 0); the == 0 check missed it, so a
+        # model that got that column WRONG (e.g. the null ignoring the regime)
+        # divided by ~1e-15 and the distance exploded to ~1e16, breaking D_MAX
+        # on every do() item (Decision Log v0.21).
+        tol = 1e-8 * (np.abs(self.mean) + 1.0)
+        self.std = np.where(self.std < tol, 1.0, self.std)
         self.z = (arr - self.mean) / self.std
         self._dxx = cdist(self.z, self.z).mean()
 
