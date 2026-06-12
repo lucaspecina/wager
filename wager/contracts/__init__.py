@@ -7,6 +7,7 @@ from wager.contracts.case import (
     Battery,
     BatteryItem,
     CaseMeta,
+    FunctionalSpec,
     OperatorInstance,
     ScoringParams,
     StakesSpec,
@@ -57,6 +58,7 @@ __all__ = [
     "SourceConfig",
     "SourceSpec",
     "StakesSpec",
+    "FunctionalSpec",
     "SubmitResult",
     "VarianceReport",
 ]

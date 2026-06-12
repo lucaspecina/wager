@@ -22,6 +22,7 @@ import numpy as np
 from wager.contracts import (
     AnchorSet,
     Battery,
+    FunctionalSpec,
     ItemScore,
     Regime,
     ScoreReport,
@@ -29,6 +30,7 @@ from wager.contracts import (
     ScoringParams,
 )
 from wager.reward.distance import TruthSide
+from wager.reward.functionals import FunctionalScorer
 from wager.reward.mdl import mdl_bytes
 from wager.reward.sandbox import SandboxedSubmission, SandboxError
 from wager.reward.seeds import derive_null_seed, derive_seed
@@ -65,23 +67,34 @@ class WorldSide:
         columns: list[str],
         n_samples: int,
         null_sample: Callable | None = None,
+        functionals: list[FunctionalSpec] | None = None,
+        c_f: float | dict[str, float] = 1.0,
     ) -> None:
         self.battery = battery
         self.columns = list(columns)
         self.n_samples = n_samples
+        self.functionals = list(functionals or [])
         self.truth_sides: list[TruthSide] = []
+        self.func_scorers: list[FunctionalScorer] = []
         self.d_maxes: list[float] = []
         for item in battery.items:
             ns = regime_to_namespace(item.regime)
             real = world_sample(ns, n_samples, item.seed_world)
             truth_side = TruthSide(real, self.columns)
+            # functional contribution, standardized by the SAME truth sample (CRN).
+            # Empty list -> extra_distance == 0 -> combined distance ≡ energy (the
+            # dummy is byte-identical; identity by construction, ARCHITECTURE §9.3).
+            func_scorer = FunctionalScorer(self.functionals, real, self.columns, truth_side.std, c_f)
+            # D_MAX_item = 1.5 x D_COMBINED(truth, null) (amendment 4, v0.28): the cap
+            # lives in the metric we actually score, and it is a FUNCTION of c_f.
             if null_sample is not None:
                 null_seed = derive_seed(item.seed_world, _NULL_REF_REP)
                 null_pred = null_sample(ns, n_samples, null_seed)
-                d_null = truth_side.distance_to(null_pred)
+                d_null = truth_side.distance_to(null_pred) + func_scorer.extra_distance(null_pred)
             else:
                 d_null = truth_side.permutation_null_distance(derive_null_seed(item.seed_world))
             self.truth_sides.append(truth_side)
+            self.func_scorers.append(func_scorer)
             self.d_maxes.append(D_MAX_FACTOR * d_null)
 
 
@@ -110,6 +123,7 @@ def score_submission(
         items: list[ItemScore] = []
         for idx, item in enumerate(world_side.battery.items):
             truth_side = world_side.truth_sides[idx]
+            func_scorer = world_side.func_scorers[idx]
             d_max = world_side.d_maxes[idx]
             distances: list[float] = []
             errors = 0
@@ -118,7 +132,7 @@ def score_submission(
                 seed_model = derive_seed(item.seed_world, j + rep_offset)
                 try:
                     pred = sandbox.run(item.regime, params.n_samples, seed_model)
-                    d = truth_side.distance_to(pred)
+                    d = truth_side.distance_to(pred) + func_scorer.extra_distance(pred)
                     if d >= d_max:  # robustness bound: worse than 1.5x the null
                         d = d_max
                         capped += 1
@@ -178,6 +192,7 @@ def score_callable(
     fidelity = 0.0
     for idx, item in enumerate(world_side.battery.items):
         truth_side = world_side.truth_sides[idx]
+        func_scorer = world_side.func_scorers[idx]
         d_max = world_side.d_maxes[idx]
         ns = regime_to_namespace(item.regime)
         d = 0.0
@@ -185,7 +200,7 @@ def score_callable(
             seed_m = derive_seed(item.seed_world, j + rep_offset)
             try:
                 pred = sample_fn(ns, params.n_samples, seed_m)
-                dist = truth_side.distance_to(pred)
+                dist = truth_side.distance_to(pred) + func_scorer.extra_distance(pred)
                 if dist >= d_max:
                     dist = d_max
             except Exception:  # noqa: BLE001
