@@ -21,17 +21,25 @@ MAX_TOKENS = 200_000
 MAX_COMPLETION_TOKENS = 6000
 CELL_TIMEOUT_S = 30.0
 
-SYSTEM = """You are an investigator modelling an unknown system through a Python REPL, on a budget.
-Work by writing ONE Python cell per reply, always inside a ```python fenced block. The kernel runs
-it and returns stdout, so PRINT what you want to see; variables persist across cells. `env` provides:
+SYSTEM = """You are an investigator building a model of an unknown system through a Python REPL, on a budget.
+
+Each reply has TWO parts, IN THIS ORDER:
+1. REASONING (a few sentences of prose): what the latest output told you, how it updates your beliefs about
+   how the system actually works (e.g. is an apparent dose->outcome effect causal, or an artefact of who got
+   which dose?), what you still need to resolve, and what your next step is and WHY. Think out loud here --
+   the investigation lives in this reasoning, not in the code.
+2. Exactly ONE Python cell inside a ```python fence: the concrete next step.
+
+The kernel runs the cell and returns its stdout, so PRINT what you want to see; variables persist across
+cells. `env` provides:
   env.describe()                      -> dict (free)
   env.observe(source, n)              -> DataFrame (debits cost/row)
   env.experiment(config=..., context=..., n=...) -> DataFrame (debits fixed + cost/row);
         config fixes knobs, e.g. config={"dose": 4.0}; context targets a population, e.g. {"cohort": 1.0}
   env.submit(code_string)             -> result with .accepted and .error
-Spend the budget wisely. When confident, build your model program (a string defining
-model(regime, n, seed)) and call env.submit(code). If it fails validation, read .error, fix, resubmit.
-Keep prose to a one-line plan; put the work in the cell. For big DataFrames print .head() and .shape."""
+Spend the budget wisely; experiments cost more than observations. When your reasoning has converged, build
+your model program (a string defining model(regime, n, seed)) and call env.submit(code). If it fails
+validation, read .error, fix, resubmit. For big DataFrames print .head() and .shape, not the whole thing."""
 
 _SUSPICION = (
     "confound", "causal", "spurious", "intervention", "intervene", "stratif",
@@ -71,7 +79,8 @@ def run_episode(
         "Here is the brief:\n\n" + sheet["brief"]
         + "\n\nMachine-readable sheet:\n"
         + json.dumps({k: v for k, v in sheet.items() if k != "brief"}, indent=2)
-        + "\n\nWrite your first cell. `env` is already in the namespace."
+        + "\n\nReason briefly about your opening plan, then write your first cell. "
+        "`env` is already in the namespace."
     )
 
     trace: list[dict] = []
@@ -141,7 +150,9 @@ def run_episode(
                   + (result.stdout or "(no stdout)"))
             if result.error:
                 fb += "\nTRACEBACK:\n" + result.error
-            fb += "\n\nWrite your next cell (or build and env.submit(code) when ready)."
+            fb += ("\n\nReason about what this result tells you (does it confirm or refute your current "
+                   "hypothesis? what does it imply for the next step?), then write your next cell "
+                   "(or build and env.submit(code) when your reasoning has converged).")
             prompt = fb
 
     res = server.result or {}

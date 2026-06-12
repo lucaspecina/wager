@@ -10,7 +10,15 @@ how the grade was computed item by item (re-scored live, deterministic).
 
 import argparse
 import json
+import re
 from pathlib import Path
+
+_FENCE = re.compile(r"```(?:python|py)?\s*\n.*?```", re.DOTALL)
+
+
+def _reasoning(reply: str) -> str:
+    """The agent's prose reasoning = the reply with the code cell removed."""
+    return _FENCE.sub("", reply or "").strip()
 
 from wager.factory.case_loader import (
     load_battery, load_ladder, load_meta, load_world_module, load_world_sample, load_world_source,
@@ -104,11 +112,13 @@ def sec_episode(trace) -> str:
     body += "</div>"
 
     for t in trace.get("trace", []):
-        plan = (t.get("reply_text", "") or "").strip().split("\n", 1)[0][:140]
+        reasoning = _reasoning(t.get("reply_text", ""))
         cr = t.get("cell_result", {})
         card = f"<div class='turn'><h3>Turn {t.get('turn')}</h3>"
-        card += f"<p><b>Plan:</b> {esc(plan)}</p>"
-        card += details("Show full model reply (reasoning)", md("```\n" + (t.get("reply_text") or "") + "\n```"))
+        if reasoning:
+            card += "<p><b>Reasoning (the agent thinking about the evidence):</b></p>" + md(reasoning, demote=2)
+        else:
+            card += "<p class='note'>(no prose reasoning in this reply)</p>"
         if t.get("cell"):
             card += "<p><b>Code the agent ran:</b></p>" + code(t["cell"])
         out = cr.get("stdout") or "(no output)"
