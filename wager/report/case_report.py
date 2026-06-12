@@ -96,6 +96,7 @@ def sec_certificates(case_dir) -> str:
 
 
 def _coverage_map(bat) -> str:
+    total = sum(it.weight for it in bat.items) or 1.0
     bands: dict[str, list] = {}
     for it in bat.items:
         if "dose" not in it.regime.config:
@@ -107,18 +108,17 @@ def _coverage_map(bat) -> str:
         b = bands.setdefault(key, [0, 0.0])
         b[0] += 1
         b[1] += it.weight
-    rows = [[k, bands[k][0], f"{bands[k][1]:.3f}"] for k in sorted(bands)]
-    oor = sum(it.weight for it in bat.items if it.regime.config.get("dose", 0) >= 6.0)
-    deep = sum(it.weight for it in bat.items if it.regime.config.get("dose", 0) >= 8.0)
-    t = table(["region", "items", "total weight"], rows, num_cols={1, 2})
-    t += (f"<p class='note'>out-of-record (dose &ge; 6): {oor:.0%} of weight &middot; "
-          f"deep / saturation (dose &ge; 8): {deep:.0%}. Audit the COVERAGE, not only the top-N "
+    rows = [[k, bands[k][0], f"{bands[k][1] / total:.0%}"] for k in sorted(bands)]
+    oor = sum(it.weight for it in bat.items if it.regime.config.get("dose", 0) >= 6.0) / total
+    deep = sum(it.weight for it in bat.items if it.regime.config.get("dose", 0) >= 8.0) / total
+    t = table(["region", "items", "% of weight"], rows, num_cols={1, 2})
+    t += (f"<p class='note'>out-of-record (dose &ge; 6): <b>{oor:.0%}</b> of weight &middot; "
+          f"deep / saturation (dose &ge; 8): <b>{deep:.0%}</b>. Audit the COVERAGE, not only the top-N "
           f"(the top-N cutoff is arbitrary).</p>")
     return t
 
 
-def sec_battery(case_dir, meta) -> str:
-    bat = load_battery(case_dir)
+def sec_battery(bat) -> str:
     items = sorted(bat.items, key=lambda it: -it.weight)
     rows = [[i + 1, f"{it.weight:.3f}", _dose(it.regime),
              f"{it.regime.context.get('cohort', 0.0):+.2f}"] for i, it in enumerate(items)]
@@ -194,13 +194,12 @@ def sec_episode(trace) -> str:
     return section("The episode (agent's full trajectory)", body, "student")
 
 
-def sec_evaluation(case_dir, meta, trace) -> str:
+def sec_evaluation(case_dir, meta, trace, bat) -> str:
     code_str = (trace or {}).get("submission_code")
     if not code_str:
         return section("The evaluation", "<p class='note'>No submission to score.</p>", "eval")
     from wager.reward.scorer import WorldSide, make_anchors, sandboxed_null_sample, score_submission
 
-    bat = load_battery(case_dir)
     ladder = dict(load_ladder(case_dir))
     ws_fn = load_world_sample(case_dir)
     cols, params = meta.column_names, meta.scoring
@@ -232,15 +231,21 @@ def sec_evaluation(case_dir, meta, trace) -> str:
 
 
 # ---- assembly -------------------------------------------------------------
-def build_report(case_dir: str | Path, trace_path: str | Path | None) -> str:
+def build_report(case_dir: str | Path, trace_path: str | Path | None,
+                 battery_file: str | Path | None = None) -> str:
+    from wager.contracts import Battery
+
     case_dir = Path(case_dir)
     meta = load_meta(case_dir)
+    bat = Battery.from_json_file(battery_file) if battery_file else load_battery(case_dir)
+    bat_label = Path(battery_file).name if battery_file else "battery.json (bootstrap)"
     trace = json.loads(Path(trace_path).read_text(encoding="utf-8")) if trace_path else None
     head = f"<h1>WAGER case report &mdash; {esc(meta.case_id)}</h1>"
-    head += "<p class='sub'>End-to-end human inspection: answer key &middot; agent view &middot; trajectory &middot; grading.</p>"
+    head += "<p class='sub'>End-to-end human inspection: answer key &middot; agent view &middot; trajectory &middot; grading."
+    head += f" &middot; battery: <b>{esc(bat_label)}</b></p>"
     body = (head + sec_overview(meta, trace) + sec_brief(case_dir) + sec_truth(case_dir, meta)
-            + sec_certificates(case_dir) + sec_battery(case_dir, meta) + sec_episode(trace)
-            + sec_evaluation(case_dir, meta, trace))
+            + sec_certificates(case_dir) + sec_battery(bat) + sec_episode(trace)
+            + sec_evaluation(case_dir, meta, trace, bat))
     return page(f"WAGER {meta.case_id}", body)
 
 
@@ -249,6 +254,7 @@ def main():
     ap.add_argument("case_dir")
     ap.add_argument("trace", nargs="?", default=None)
     ap.add_argument("-o", "--out", default=None)
+    ap.add_argument("-b", "--battery", default=None, help="battery file to show (default: case battery.json)")
     args = ap.parse_args()
     case_dir = Path(args.case_dir)
     trace = args.trace
@@ -264,7 +270,10 @@ def main():
                 continue
         if trace:
             print(f"(no trace given; using {Path(trace).name})")
-    html = build_report(case_dir, trace)
+    bfile = args.battery
+    if bfile and not Path(bfile).exists():
+        bfile = case_dir / bfile
+    html = build_report(case_dir, trace, battery_file=bfile)
     out = Path(args.out) if args.out else Path("reports") / f"{case_dir.name}.html"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(html, encoding="utf-8")

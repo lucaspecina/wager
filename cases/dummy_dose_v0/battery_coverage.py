@@ -57,6 +57,12 @@ def main():
     deep = sum(it.weight for it in bat.items if it.regime.config.get("dose", 0) >= 8.0)
     print(f"\n  out-of-record (dose>=6): weight {oor:.3f}   deep (dose>=8): weight {deep:.3f}")
 
+    # write to a SEPARATE file so the dossier can show the derived battery for
+    # audit WITHOUT expiring the bootstrap (that only happens on Lucas's approval)
+    out = CASE_DIR / "battery_derived.json"
+    bat.to_json_file(out)
+    print(f"\nderived battery (pre-audit, not battery.json) -> {out}")
+
 
 if __name__ == "__main__":
     main()

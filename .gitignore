@@ -222,3 +222,4 @@ __marimo__/
 .env.*                # any env variant with secrets
 scratch/              # throwaway probes + commit-message files
 reports/              # generated human-inspection HTML (regenerable)
+cases/*/battery_derived.json  # pre-audit staging battery (becomes battery.json on approval)
