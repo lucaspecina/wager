@@ -1,0 +1,7 @@
+{
+  "theory_gap": 0.0623754253490381,
+  "mechanistic_gap": 0.9903951331137901,
+  "R_no_latent": 0.9376245746509619,
+  "denom_raw": 0.02314668235916681,
+  "best_associational": "gbm_no_latent"
+}

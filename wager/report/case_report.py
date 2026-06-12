@@ -72,15 +72,61 @@ def sec_truth(case_dir, meta) -> str:
     return section("The hidden truth", body, "truth")
 
 
+def sec_certificates(case_dir) -> str:
+    cpath = Path(case_dir) / "certificates.json"
+    if not cpath.exists():
+        return ""
+    c = json.loads(cpath.read_text(encoding="utf-8"))
+    body = "<p class='note'>Computable certificates (factory side, never seen by the agent): do the worlds " \
+           "actually exert the pressures we claim? Each is in R units (fraction of the truth&ndash;naive range).</p>"
+    rows = [
+        ["mechanistic gap", f"{c.get('mechanistic_gap', float('nan')):.3f}",
+         "truth minus the best model fit to OBSERVATIONAL data only -> you must EXPERIMENT to win (curve-fitting loses)"],
+        ["theory gap", f"{c.get('theory_gap', float('nan')):.3f}",
+         "truth minus the best model using only observable columns (no invented latent) -> pressure to INVENT hidden constructs"],
+    ]
+    if "prior_gap" in c:
+        rows.append(["prior gap", f"{c['prior_gap']:.3f}",
+                     "truth minus the fresh-LLM prior-evoked model (contamination detector, in refinement)"])
+    body += table(["certificate", "value (R units)", "what it means"], rows, num_cols={1})
+    body += (f"<p class='note'>discrimination scale (S_truth&minus;S_naive raw) = "
+             f"{c.get('denom_raw', float('nan')):.4f}; the reward noise (CV) is ~1% of R, well below this, "
+             f"so the exam genuinely separates good answers from bad.</p>")
+    return section("Certificates (does this world exert the pressures?)", body, "truth")
+
+
+def _coverage_map(bat) -> str:
+    bands: dict[str, list] = {}
+    for it in bat.items:
+        if "dose" not in it.regime.config:
+            key = "observational"
+        else:
+            d = it.regime.config["dose"]
+            lo = int(min(d, 9.999) // 2.5) * 2.5
+            key = f"dose [{lo:.1f}, {lo + 2.5:.1f})"
+        b = bands.setdefault(key, [0, 0.0])
+        b[0] += 1
+        b[1] += it.weight
+    rows = [[k, bands[k][0], f"{bands[k][1]:.3f}"] for k in sorted(bands)]
+    oor = sum(it.weight for it in bat.items if it.regime.config.get("dose", 0) >= 6.0)
+    deep = sum(it.weight for it in bat.items if it.regime.config.get("dose", 0) >= 8.0)
+    t = table(["region", "items", "total weight"], rows, num_cols={1, 2})
+    t += (f"<p class='note'>out-of-record (dose &ge; 6): {oor:.0%} of weight &middot; "
+          f"deep / saturation (dose &ge; 8): {deep:.0%}. Audit the COVERAGE, not only the top-N "
+          f"(the top-N cutoff is arbitrary).</p>")
+    return t
+
+
 def sec_battery(case_dir, meta) -> str:
     bat = load_battery(case_dir)
     items = sorted(bat.items, key=lambda it: -it.weight)
-    rows = [[f"{it.weight:.3f}", _dose(it.regime),
-             f"{it.regime.context.get('cohort', 0.0):+.2f}"] for it in items]
+    rows = [[i + 1, f"{it.weight:.3f}", _dose(it.regime),
+             f"{it.regime.context.get('cohort', 0.0):+.2f}"] for i, it in enumerate(items)]
     note = ("<p class='note'>The secret exam: weighted held-out scenarios the submission is graded on. "
             "Weight concentrates where understanding the trap changes the prediction. The agent never sees it.</p>")
-    return section(f"The secret exam (battery, {len(items)} items)",
-                   note + table(["weight", "dose", "cohort"], rows, num_cols={0, 2}))
+    body = note + "<h3>Coverage map (the right audit lens)</h3>" + _coverage_map(bat)
+    body += "<h3>All items (by weight)</h3>" + table(["#", "weight", "dose", "cohort"], rows, num_cols={0, 1, 3})
+    return section(f"The secret exam (battery, {len(items)} items)", body)
 
 
 def _verbs_table(verbs) -> str:
@@ -105,11 +151,15 @@ def sec_episode(trace) -> str:
     body = "<div class='kv'>"
     body += f"<b>accepted</b><span>{trace.get('accepted')} (ended: {trace.get('abort_reason')})</span>"
     body += f"<b>budget</b><span>spent {trace.get('budget_spent','-')} / {trace.get('budget_total','-')}</span>"
-    body += (f"<b>signal (v0.1)</b><span>attribution-before-experiment="
-             f"{sig.get('attribution_before_experiment')} "
-             f"(1st analysis turn {sig.get('first_attribution_turn')}, "
-             f"1st experiment turn {sig.get('first_experiment_turn')})</span>")
     body += "</div>"
+    # behavioral signature (observed, never rewarded): did the agent do attribution
+    # analysis BEFORE paying for the first experiment? -- hypothesis-before-spend.
+    abe = sig.get("attribution_before_experiment")
+    badge = "<span class='ok'>yes</span>" if abe else ("<span class='bad'>no</span>" if abe is False else "&mdash;")
+    body += (f"<div class='warn'><b>Behavioral signature (v0.1):</b> attribution analysis before the first "
+             f"paid experiment = {badge} &mdash; first analysis at turn {sig.get('first_attribution_turn')}, "
+             f"first experiment at turn {sig.get('first_experiment_turn')}. "
+             f"<span class='note'>Observed, never rewarded (the reward is only on the submission).</span></div>")
 
     for t in trace.get("trace", []):
         reasoning = _reasoning(t.get("reply_text", ""))
@@ -189,7 +239,8 @@ def build_report(case_dir: str | Path, trace_path: str | Path | None) -> str:
     head = f"<h1>WAGER case report &mdash; {esc(meta.case_id)}</h1>"
     head += "<p class='sub'>End-to-end human inspection: answer key &middot; agent view &middot; trajectory &middot; grading.</p>"
     body = (head + sec_overview(meta, trace) + sec_brief(case_dir) + sec_truth(case_dir, meta)
-            + sec_battery(case_dir, meta) + sec_episode(trace) + sec_evaluation(case_dir, meta, trace))
+            + sec_certificates(case_dir) + sec_battery(case_dir, meta) + sec_episode(trace)
+            + sec_evaluation(case_dir, meta, trace))
     return page(f"WAGER {meta.case_id}", body)
 
 

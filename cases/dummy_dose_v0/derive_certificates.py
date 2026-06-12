@@ -95,6 +95,20 @@ def main():
               f"dist={r['distance']:.4f}  truth_out={r.get('truth_outcome_mean', float('nan')):.2f} "
               f"nolat_out={r.get('rival_outcome_mean', float('nan')):.2f}")
 
+    # store the numbers so the deterministic dossier can read them (zero-LLM at
+    # dossier time; certificates are a factory artifact, Decision Log v0.23)
+    stored = {
+        "theory_gap": cert["theory_gap"], "mechanistic_gap": cert["mechanistic_gap"],
+        "R_no_latent": cert["R_no_latent"], "denom_raw": cert["denom_raw"],
+        "best_associational": cert["best_associational"],
+    }
+    if "prior_gap" in cert:
+        stored["prior_gap"] = cert["prior_gap"]
+        stored["R_prior"] = cert["R_prior"]
+    import json as _json
+    (CASE_DIR / "certificates.json").write_text(_json.dumps(stored, indent=2) + "\n", encoding="utf-8")
+    print(f"\nstored -> {CASE_DIR / 'certificates.json'}")
+
 
 def brief_text():
     return (CASE_DIR / "brief.md").read_text(encoding="utf-8")
