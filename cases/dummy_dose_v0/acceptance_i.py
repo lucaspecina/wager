@@ -66,7 +66,7 @@ def main():
     rivals = [rival_naive(pool), best_no_latent(train, pool), twin]
     nl_ns: dict = {}
     exec(dict(ladder)["rung_6_null"], nl_ns)  # null model for the D_MAX disagreement cap
-    derived = build_battery(world_sample, rivals, nl_ns["model"], cols, meta.stakes.decision_variables)
+    derived = build_battery(world_sample, rivals, nl_ns["model"], cols, meta.stakes)
 
     print("=" * 72)
     print("ACCEPTANCE (i) -- hand battery vs 100%-derived battery")
@@ -79,10 +79,12 @@ def main():
     naive_code = solver_code(solver_naive)
     canon_code = solver_code(solver_canonical)
     print("\n  naive <-> canonical spread (the harness degraded-truth ladder):")
+    spreads = {}
     for label, bat in (("hand", hand), ("derived", derived)):
         rn = score_episode_submission(naive_code, world_sample, world_source, dict(ladder)["rung_5_naive_fit"], null_code, bat, cols, params)
         rc = score_episode_submission(canon_code, world_sample, world_source, dict(ladder)["rung_5_naive_fit"], null_code, bat, cols, params)
-        print(f"    [{label:<7s}] naive R={rn['R']:.3f}  canonical R={rc['R']:.3f}  spread={rc['R']-rn['R']:.3f}")
+        spreads[label] = rc["R"] - rn["R"]
+        print(f"    [{label:<7s}] naive R={rn['R']:.3f}  canonical R={rc['R']:.3f}  spread={spreads[label]:.3f}")
 
     # top-10 of the derived battery, readable (human audit)
     print("\n  TOP-10 derived battery items (human audit):")
@@ -102,15 +104,19 @@ def main():
         return monotone and extremes
 
     der_prod = production_ok(l_der)
+    spread_ok = abs(spreads["hand"] - spreads["derived"]) < 0.1
     print("\n" + "=" * 72)
-    print(f"ACCEPTANCE (i) -- production criterion (monotonicity + extremes), derived battery")
+    print("ACCEPTANCE (i) -- production criterion (monotonicity + extremes), derived battery")
     print(f"  monotone order + extremes preserved: {der_prod}")
-    print(f"  naive<->canonical spread preserved : {abs(0.955 - 0.979) < 0.1} (derived 0.979 vs hand 0.955)")
-    print(f"  (the 5%-total-order margin is the canonical-dummy test only, not production)")
-    print(f"\nACCEPTANCE (i): {'MET (production criterion)' if der_prod else 'CHECK'}")
+    print(f"  naive<->canonical spread preserved : {spread_ok} "
+          f"(derived {spreads['derived']:.3f} vs hand {spreads['hand']:.3f})")
+    print("  (margin criterion = 3xCV(R) per-axis; the 5%-total-order margin is the canonical-dummy test only)")
+    print(f"\nACCEPTANCE (i): {'MET (production criterion)' if der_prod and spread_ok else 'CHECK'}")
     print("=" * 72)
 
-    if "--write" in sys.argv and der_prod:
+    # bootstrap expires ONLY after Lucas's human audit approves the top-10
+    # (Decision Log v0.22); --write is gated behind that approval, not run here.
+    if "--write" in sys.argv and der_prod and spread_ok:
         derived.to_json_file(CASE_DIR / "battery.json")
         print("  derived battery written to battery.json (bootstrap expired)")
 

@@ -49,7 +49,10 @@
     "narrative": "A clinic operator must set the dose policy for incoming populations, including doses and populations outside the historical record; mispricing the dose-response curve where it saturates is costly.",
     "decision_variables": [
       "dose"
-    ]
+    ],
+    "context_relevance": {
+      "cohort": {"center": 0.0, "sd": 1.0}
+    }
   },
   "scoring": {
     "lambda_mdl": 0.00010128773858650133,

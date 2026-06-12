@@ -1,22 +1,33 @@
 """Derive the battery from the declared case (ARCHITECTURE §6, factory side).
 
-Algorithm: sample candidate regimes from the control surface -> disagreement(r)
-between {truth, rivals} -> relevance(r) from the declared stakes -> weight
-w ~ relevance x disagreement -> top-K + a low-weight uniform audit tail ->
-battery.json. The battery IS the relevance, formalized: mass concentrates where
-the tempting wrong rivals die -- exactly where the agent must understand the
-world to predict well.
+Algorithm: sample candidate regimes from the control surface -> NORMALIZED
+disagreement (D / D_MAX_item in [0,1]) among {truth, rivals}, dropping items that
+do not even separate truth from the null -> relevance from the declared stakes
+(decision variable + population mix) -> weight = relevance x disagreement_norm ->
+dose-stratified top-K + a low-weight audit tail -> battery.json.
 
-Deterministic (seeded) so the derived battery is reproducible and committable.
+The normalization by D_MAX (Decision Log v0.22, the natural consequence of the
+universal cap) makes disagreement a fraction of the item's own maximum credible
+divergence, killing scale-absolute dominance with NO new constants. The stakes
+relevance modulates context (it must not be flat) so off-support extremes land in
+the audit tail, not the top-K. Deterministic (seeded) and reproducible.
 """
 
+from types import SimpleNamespace
 from typing import Callable
 
 import numpy as np
 
-from wager.contracts import Battery, BatteryItem
+from wager.contracts import Battery, BatteryItem, StakesSpec
 from wager.contracts.world import Regime
 from wager.reward.distance import energy_distance
+
+D_MAX_FACTOR = 1.5  # D_MAX_item = 1.5 x D(truth, null), as in scoring
+NOISE_FLOOR_MULT = 3.0  # eligibility: D(truth, null) must exceed 3 x sampling noise
+
+
+def _ns(r: Regime) -> SimpleNamespace:
+    return SimpleNamespace(config=dict(r.config), context=dict(r.context), horizon=r.horizon)
 
 
 def sample_candidates(rng, n: int, dose_lo=0.0, dose_hi=10.0) -> list[Regime]:
@@ -35,39 +46,54 @@ def sample_candidates(rng, n: int, dose_lo=0.0, dose_hi=10.0) -> list[Regime]:
     return regimes
 
 
-D_MAX_FACTOR = 1.5  # D_MAX_item = 1.5 x D(truth, null), as in scoring
+def _z(arr, mu, sd):
+    return (arr - mu) / sd
 
 
-def _disagreement(
+def disagreement_norm(
     samplers: list[Callable], null_fn: Callable, regime: Regime,
     columns: list[str], n_mc: int, seed: int,
-) -> float:
-    """Mean pairwise energy distance among {truth, rivals} at this regime,
-    standardized by the truth sample's stats and CAPPED at the per-regime
-    D_MAX = 1.5 x D(truth, null) -- the SAME universal cap as scoring (Decision
-    Log v0.21), so no single rival's distance can dominate the weights beyond the
-    'worse than knowing nothing' bound."""
-    from types import SimpleNamespace
-
-    ns = SimpleNamespace(config=dict(regime.config), context=dict(regime.context), horizon=regime.horizon)
-    draws = []
-    for i, fn in enumerate(samplers):
-        try:
-            draws.append(fn(ns, n_mc, seed + i)[columns].to_numpy(dtype=float))
-        except Exception:  # noqa: BLE001
-            draws.append(None)
-    truth = draws[0]
-    mu, sd = truth.mean(0), truth.std(0)
+) -> tuple[float, bool]:
+    """Returns (disagreement_norm in [0,1], eligible). norm = mean pairwise
+    energy distance among {truth, rivals} (each capped at D_MAX) / D_MAX. eligible
+    iff D(truth, null) > 3 x sampling-noise floor (else the item does not even
+    separate truth from the null -> it cannot discriminate)."""
+    ns = _ns(regime)
+    truth = samplers[0](ns, n_mc, seed)[columns].to_numpy(dtype=float)
+    truth2 = samplers[0](ns, n_mc, seed + 7919)[columns].to_numpy(dtype=float)  # noise floor
+    mu = truth.mean(0)
+    sd = truth.std(0)
     sd = np.where(sd < 1e-8 * (np.abs(mu) + 1.0), 1.0, sd)  # relative tol (v0.21)
-    z = [None if d is None else (d - mu) / sd for d in draws]
-    z_null = (null_fn(ns, n_mc, seed + 99)[columns].to_numpy(dtype=float) - mu) / sd
-    d_max = D_MAX_FACTOR * energy_distance(z[0], z_null)
-    dists = []
-    for a in range(len(z)):
-        for b in range(a + 1, len(z)):
-            if z[a] is not None and z[b] is not None:
-                dists.append(min(energy_distance(z[a], z[b]), d_max))
-    return float(np.mean(dists)) if dists else 0.0
+    zt = _z(truth, mu, sd)
+    z_null = _z(null_fn(ns, n_mc, seed + 99)[columns].to_numpy(dtype=float), mu, sd)
+    d_tn = energy_distance(zt, z_null)
+    noise = energy_distance(zt, _z(truth2, mu, sd))
+    if d_tn <= NOISE_FLOOR_MULT * noise:
+        return 0.0, False
+    d_max = D_MAX_FACTOR * d_tn
+    zs = [zt]
+    for fn in samplers[1:]:
+        try:
+            zs.append(_z(fn(ns, n_mc, seed + 1 + len(zs))[columns].to_numpy(dtype=float), mu, sd))
+        except Exception:  # noqa: BLE001
+            zs.append(None)
+    norm_dists = []
+    for a in range(len(zs)):
+        for b in range(a + 1, len(zs)):
+            if zs[a] is not None and zs[b] is not None:
+                norm_dists.append(min(energy_distance(zs[a], zs[b]), d_max) / d_max)
+    return (float(np.mean(norm_dists)) if norm_dists else 0.0), True
+
+
+def stakes_relevance(regime: Regime, stakes: StakesSpec) -> float:
+    """Declared relevance: full weight if the regime sets a decision variable,
+    times the population-mix density over context (NOT flat -- Decision Log v0.22)."""
+    rel = 1.0 if any(v in regime.config for v in stakes.decision_variables) else 0.4
+    for var, spec in stakes.context_relevance.items():
+        val = regime.context.get(var, spec.get("center", 0.0))
+        sd = spec.get("sd", 1.0) or 1.0
+        rel *= float(np.exp(-0.5 * ((val - spec.get("center", 0.0)) / sd) ** 2))
+    return rel
 
 
 def build_battery(
@@ -75,7 +101,7 @@ def build_battery(
     rivals: list[Callable],
     null_fn: Callable,
     columns: list[str],
-    decision_vars: list[str],
+    stakes: StakesSpec,
     n_candidates: int = 400,
     k_top: int = 12,
     k_audit: int = 4,
@@ -88,30 +114,16 @@ def build_battery(
 
     scored = []
     for i, r in enumerate(candidates):
-        dis = _disagreement(samplers, null_fn, r, columns, n_mc, seed + 1000 * i)
-        # relevance from the declared stakes: decision-relevant regimes (those that
-        # set a decision var) weigh full; AND a taper away from the historical
-        # support (cohort ~ 0) so off-support extreme regimes -- where a rival
-        # merely EXTRAPOLATES badly -- do not dominate the top-K (they belong in
-        # the low-weight audit tail; Decision Log v0.20). The taper keeps them
-        # present (the brief does care about out-of-record populations) without
-        # letting extrapolation blowups crowd out the discriminating in-support
-        # regimes where the trap actually bites.
-        cohort = r.context.get("cohort", 0.0)
-        taper = float(np.exp(-0.5 * (cohort / 1.5) ** 2))
-        rel = (1.0 if any(v in r.config for v in decision_vars) else 0.4) * taper
-        scored.append((rel * dis, r))
+        dis, eligible = disagreement_norm(samplers, null_fn, r, columns, n_mc, seed + 1000 * i)
+        if not eligible:
+            continue  # item does not separate truth from null -> non-discriminating
+        scored.append((stakes_relevance(r, stakes) * dis, r))
 
-    # STRATIFIED top-K by dose band (+ observational): weight by disagreement
-    # WITHIN each band, but force coverage across the dose range so the battery
-    # also separates small degradations (e.g. a param perturbation shows in the
-    # saturation curvature at mid dose), not only the big ones at high dose
-    # (Decision Log v0.20).
+    # dose-stratified top-K (force coverage across the dose range) + audit tail
     def _stratum(r: Regime) -> str:
         if "dose" not in r.config:
             return "obs"
-        d = r.config["dose"]
-        return f"dose{int(min(d, 9.999) // 2.5)}"  # 4 dose bands over [0,10)
+        return f"dose{int(min(r.config['dose'], 9.999) // 2.5)}"
 
     by_stratum: dict[str, list] = {}
     for w, r in sorted(scored, key=lambda t: -t[0]):
@@ -129,12 +141,11 @@ def build_battery(
     audit = [rest[j] for j in audit_idx]
 
     total_top = sum(w for w, _ in top) or 1.0
-    items = []
-    sw = 11000
+    items, sw = [], 11000
     for w, r in top:
         items.append(BatteryItem(weight=float(w / total_top), regime=r, seed_world=sw))
         sw += 1
-    audit_w = 0.1 * (1.0 / max(len(audit), 1))  # low-weight tail, ~10% mass total
+    audit_w = 0.1 / max(len(audit), 1)
     for _, r in audit:
         items.append(BatteryItem(weight=float(audit_w), regime=r, seed_world=sw))
         sw += 1

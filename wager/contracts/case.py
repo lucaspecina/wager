@@ -53,6 +53,11 @@ class StakesSpec(BaseModel):
 
     narrative: str
     decision_variables: list[str]
+    # decision-relevant population mix declared from the brief: per context var,
+    # {"center", "sd"} of the populations the decision cares about. The battery's
+    # stakes_relevance MUST modulate context with this (not be flat); a flat
+    # relevance lets off-support extremes dominate (Decision Log v0.22).
+    context_relevance: dict[str, dict[str, float]] = Field(default_factory=dict)
 
 
 class ScoringParams(BaseModel):

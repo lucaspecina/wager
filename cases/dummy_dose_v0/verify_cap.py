@@ -41,7 +41,7 @@ def main():
     rivals = [rival_naive(pool), best_no_latent(train, pool), twin]
     nl_ns: dict = {}
     exec(ladder["rung_6_null"], nl_ns)
-    battery = build_battery(world_sample, rivals, nl_ns["model"], cols, meta.stakes.decision_variables)
+    battery = build_battery(world_sample, rivals, nl_ns["model"], cols, meta.stakes)
 
     with sandboxed_null_sample(ladder["rung_6_null"], cols, params.model_call_timeout_s) as null_sample:
         ws = WorldSide(world_sample, battery, cols, params.n_samples, null_sample=null_sample)
