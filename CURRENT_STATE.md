@@ -1,13 +1,17 @@
 # CURRENT_STATE — WAGER
 
 > Estado vivo del repo: qué corre hoy, qué falta. Lo mantiene Claude Code al día en cada
-> sesión de trabajo (regla: NORTH_STAR §0.10). Última actualización: **2026-06-11**.
+> sesión de trabajo (regla: NORTH_STAR §0.10). Última actualización: **2026-06-12**.
 
 ## Qué corre hoy
 
-**Slice 1 (reward path) y Slice 2 (harness interactivo, C1+C2+C3) completos y verdes.**
-`pip install -e .[dev,agent]` + `pytest` → **69 verdes, 1 skip** (test LLM opt-in;
-correr con `RUN_LLM_TESTS=1`). Python 3.13.
+**Slice 1 (reward path), Slice 2 (harness C1+C2+C3) y slice de derivación (rivales+batería+
+certificados) completos y verdes.** `pip install -e .[dev,agent]` + `pytest` → **82 verdes,
+2 skip** (tests LLM opt-in; correr con `RUN_LLM_TESTS=1`). Python 3.13.
+
+**Última sesión (v0.24–v0.25)**: ronda de hardening de batería cerrada (commit `7e7f94e`,
+pusheada); **Mendel arrancado** y su predicción central (ii) **REFUTADA** por un control
+decisivo → hallazgo de scoring que espera decisión de Lucas (ver abajo + Decision Log v0.25).
 
 - `wager/contracts/` — contratos Pydantic v2 (world, case, episode, reports).
 - `wager/reward/` — **zona cero-LLM** (allowlist de imports en CI + no importa
@@ -74,13 +78,42 @@ Pre-registración v0.17 (predicciones dummy/Mendel ANTES de correr). Hecho:
 - **Rival (c) panel ✅** (LLM-first milestone, `rival_c_panel.py`): 3/3 LLMs frescos
   compilan a programa ejecutable; el prior aterriza < ingenuo (R≈0).
 
-**Falta (próximo increment)**:
-1. `battery_builder` (candidatos + desacuerdo + relevancia + pesos) → batería derivada
-   que ordene la escalera a mano (aceptación i) + expira bootstrap.
-2. Rival (b) gemelo (ablación de operador + refit).
-3. **Mundo Mendel** (subtipos latentes): predicciones (ii) theory gap grande + (iii)
-   peso de batería donde el no-latente falla; pasar L1 100% derivado (aceptación ii).
-4. Auditoría humana top-10 (ambos mundos, formato legible). Stretch: E0-Mendel.
+**Hecho desde entonces (v0.20–v0.24)**:
+1. ✅ `battery_builder` (candidatos + `disagreement_norm`=D/D_MAX + piso de elegibilidad +
+   `stakes_relevance` + dedup) → batería 100%-derivada; **aceptación (i) MET** (criterio de
+   producción: monotonía + extremos).
+2. ✅ Rival (b) gemelo (ablación de operador + refit) + **escalera de capacidad completa**
+   (a + linear + GBM + gemelos = 5 rivales del desacuerdo; `build_standard_rivals`).
+3. ✅ Ronda de hardening v0.24: cola de cohort fuera-de-registro, robustez al seed
+   (~6.5pp estructural → producción necesita ~200 ítems), checklist de promesas del brief
+   en el dossier. **Retractación de Claude** (item 5): out-of-record discrimina el rung
+   linealizado → suba de peso a discutir con Lucas.
+
+**PENDIENTE de Lucas (gatea el cierre del slice de derivación)**:
+- Re-auditoría del mapa de cobertura CON el checklist de promesas → recién ahí **expira el
+  bootstrap** (battery.json de mano → derivada).
+- Decisión sobre el peso out-of-record (consecuencia de la retractación item 5).
+
+## Mendel (2º mundo) — predicción (ii) REFUTADA, hallazgo de scoring (Decision Log v0.25)
+
+`cases/mendel_subtypes_v0/world.py` (subtipos latentes con efecto de dosis de signo
+opuesto + biomarcador bimodal) + `theory_gap_probe.py`. **Pre-registro `30365fa` antes del
+código.** Resultado: **el control decisivo (oráculo Gaussiano de momentos por-régimen,
+unimodal) saca R=0.963** → gap irreducible **0.037** (≈ dummy). El "gap" de 0.35 vs el
+no-latente homoscedástico era artefacto de heteroscedasticidad. **La distancia de energía
+sobre marginales casi no ve multimodalidad a momentos fijos** → la heterogeneidad latente
+NO es recompensable con el scoring actual. PERO un funcional `P(daño)` muestra brechas
+0.16–0.29 → el latente SÍ es decision-relevante.
+
+**FRENO Y DISCUSIÓN (decisión de Lucas, toca el reward path)**: extender el scoring a un
+**funcional de decisión declarado en stakes** (opción A, recomendada) vs término de
+multimodalidad en la distancia (B) vs rediseñar el latente (C). La suite Mendel espera esta
+decisión. El mundo + probe quedan commiteados como evidencia.
+
+**Falta (tras la decisión de scoring)**: generalizar la fábrica (`derive_rivals`/
+`battery_builder`) a context-var por-caso (hoy hardcodea `cohort`); ladder + meta + batería
+derivada de Mendel; aceptación (ii). Detector de contaminación v1 = contraste-gemelo.
+Auditoría humana (ambos mundos). Stretch: E0-Mendel.
 
 ## Qué falta (más allá del slice)
 
