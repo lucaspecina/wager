@@ -105,21 +105,25 @@ sobre marginales casi no ve multimodalidad a momentos fijos** → la heterogenei
 NO es recompensable con el scoring actual. PERO un funcional `P(daño)` muestra brechas
 0.16–0.29 → el latente SÍ es decision-relevante.
 
-**DECISIÓN (v0.26): (A) funcionales de stakes, SPEC-FIRST.** El spec está escrito
-(ARCHITECTURE §9.3 nuevo + certificado de Visibilidad §7 + rung oráculo §13-L1 + red-team de
-5 ataques de Goodhart del funcional) + Decision Log v0.26 con pre-registros P1–P4. **Sin
-implementación todavía — espera aprobación del spec** (protocolo spec-first + no-avanzar-sin-
-aprobación). El ataque #5 pasó a "realizado y mitigado".
+**DECISIÓN (v0.26→v0.27): (A) funcionales de stakes, SPEC-FIRST — APROBADA (triangulada con
+2ª IA) con 2 correcciones de mi estrés-test.** Spec escrito (ARCHITECTURE §9.3 + certificado
+de Visibilidad §7 + rung-diagnóstico oráculo §13-L1 + red-team de 5 ataques) + Decision Log
+v0.26/v0.27. Correcciones v0.27: **(Q4)** el oráculo de momentos es **diagnóstico** ("¿el
+metro ve?"), NO el proxy de brecha de teoría — esa va contra el **mejor sin-latente FLEXIBLE**
+(mixturas/GBM condicional). **(Q5)** **Mendel v0 no tiene latente genuino** (el biomarcador
+limpio lo proxia) → **Mendel v1**: biomarcador ruidoso + ausente de la fuente barata
+(comprable) + batería con shifts de mix fuera de soporte; v0 queda como **control negativo**.
+Reglas nuevas: separación calibración/validación + banda de sensibilidad (`c_F` ×2/÷2);
+completitud = certificado de visibilidad (no whack-a-mole); VoI prohibido en reward.
 
-**Próximo (tras aprobación del spec)**:
-1. Implementar el score combinado (energía + funcionales) en `wager/reward/` — biblioteca
-   tipada de funcionales (numpy puro, cero-LLM), término `Σ c_F·|F(pred)−F(real)|` capeado.
-2. **Pre-registros a testear**: (P1) dummy bajo combinado = escalera preservada; (P2) Mendel
-   theory gap reaparece ≥3× el dummy contra el oráculo de momentos; (P3) batería combinada
-   pesa colas/shifts de mix; (P4) CV(R)<5% con funcionales.
-3. Generalizar la fábrica (`derive_rivals`/`battery_builder`) a context-var por-caso (hoy
-   hardcodea `cohort`); ladder + meta + batería derivada de Mendel; aceptación (ii).
-4. Detector de contaminación v1 = contraste-gemelo (sobre el dummy). Stretch: E0-Mendel.
+**Orden del slice (v0.27, EN CURSO)**: **(0)** brief+meta de Mendel v1 con trazabilidad →
+**(1)** P1 dummy (score combinado, identidad por construcción si no declara funcionales) →
+**(2)** calibrar `c_F` mínimo-suficiente + congelar → **(3)** P2-v1 con el par de control
+v0/v1 (gap mide REPRESENTACIÓN, no bimodalidad) → **(4)** P3 (batería pesa colas/shifts) →
+**(5)** P4 (CV<5%) + banda de sensibilidad. Implementación toca `wager/reward/` (biblioteca
+tipada de funcionales, numpy puro, cero-LLM) + generalizar la fábrica a context-var por-caso.
+
+**Después**: detector de contaminación v1 = contraste-gemelo (sobre el dummy). Stretch: E0-Mendel.
 
 **PENDIENTE de Lucas que sigue abierto** (del slice de derivación): re-auditoría del mapa de
 cobertura del dummy CON el checklist → expira el bootstrap; decisión del peso out-of-record
