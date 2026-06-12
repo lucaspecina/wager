@@ -62,4 +62,4 @@ El repo SREG (proyecto anterior, mismo autor) es **referencia de SOLO LECTURA** 
 
 ## Estado actual
 
-El estado vivo (qué corre hoy, qué falta, próximo paso) está en `CURRENT_STATE.md` — mantenerlo SIEMPRE actualizado al cerrar cada sesión de trabajo. Docs en v0.10 (NORTH_STAR) y v0.3 (ARCHITECTURE).
+El estado vivo (qué corre hoy, qué falta, próximo paso) está en `CURRENT_STATE.md` — mantenerlo SIEMPRE actualizado al cerrar cada sesión de trabajo. Decision Log en v0.26 (NORTH_STAR); ARCHITECTURE con §9.3 (score combinado — funcionales de stakes). Último: decisión (A) funcionales de stakes, spec escrito esperando aprobación (no implementado).

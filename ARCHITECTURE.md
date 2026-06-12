@@ -161,6 +161,8 @@ Cobertura imperfecta de rivales = ataque #13: se amortigua con la cola de audito
    (~10^3 regímenes; ~20% off-support / combinaciones fuera del rango histórico)
 2. DESACUERDO: para cada r: disagreement(r) = media de D entre pares de
    {verdad, rivales} con n_mc muestras
+   (D = el MISMO score combinado del §9.3 — energía + funcionales — "un solo
+    método": la batería pesa donde los rivales discrepan también en el funcional)
 3. RELEVANCIA: stakes_relevance(r) declarada en meta.json por el architect
    (variables de decisión y rangos de interés; el brief la NARRA después —
     la batería se construye antes del brief y el writer sigue ciego a batería
@@ -182,11 +184,14 @@ Forma de la batería como dial de tipo de caso: concentrada en decisiones (casos
 | Brecha de prior | D(rival (c), verdad) sobre la batería, condicionada a recuperable con presupuesto | según suite |
 | Brecha de adaptividad | score(política secuencial greedy-EIG) − score(mejor diseño batch) | > 0 si el caso pretende entrenar el loop |
 | Brecha de teoría | score(sin restricción) − score(mejor modelo sin estado latente) | > 0 en suite Mendel |
+| **Visibilidad** (v0.26) | toda estructura instalada debe **separarse en el reward del caso**: el rung de ablación de cada operador pierde ≥ 3×CV(R) bajo el score COMBINADO | obligatorio; si tras declarar funcionales sigue invisible → rediseño o rechazo del mundo, registrado |
 | Carga diferencial | ≥2 de: verificador ruidoso / objetivo oculto / canal sesgado / sondas caras | obligatorio |
 | Validez | el mundo corre; los fenómenos declarados se materializan (validators) | obligatorio |
 | Recuperabilidad | fracción de la estructura identificable con el acceso/presupuesto dado (estimada vía oráculo/ensembles) | declarada por caso; la batería la refleja — anti-degeneración "solo abstención" |
 
-**Proxies computables (declarados).** "Mejor estrategia mecanística" se aproxima en v0 por **S_verdad** (score de entregar `world.py` mismo — el techo de ruido de muestreo; sobreestima el headroom alcanzable, y eso se declara) o por re-fit del esqueleto verdadero con datos limitados al presupuesto. "Mejor política secuencial" (adaptividad) requiere un diseñador greedy-EIG por formalismo — maquinaria v0 de alcance acotado. Cada brecha publica su proxy y su sesgo.
+**Proxies computables (declarados).** "Mejor estrategia mecanística" se aproxima en v0 por **S_verdad** (score de entregar `world.py` mismo — el techo de ruido de muestreo; sobreestima el headroom alcanzable, y eso se declara) o por re-fit del esqueleto verdadero con datos limitados al presupuesto. "Mejor política secuencial" (adaptividad) requiere un diseñador greedy-EIG por formalismo — maquinaria v0 de alcance acotado. **"Mejor modelo sin estado latente" (brecha de teoría) en mundos de heterogeneidad latente se aproxima por el oráculo de momentos matcheados** (Gaussiana con media+covarianza exactas por-régimen, unimodal): es el competidor sin-latente MÁS fuerte, así que aísla la brecha irreducible (el valor de positar el latente) de toda capacidad de ajuste de media/varianza — sin él, un rival homoscedástico débil INFLA la brecha vía heteroscedasticidad (la trampa v0.18; ver Decision Log v0.25). Cada brecha publica su proxy y su sesgo.
+
+**Diagnóstico permanente de fábrica — `theory_gap_probe` generalizado (v0.26).** El probe de Mendel se canoniza como check de fábrica para todo mundo con estructura latente declarada: computa la brecha **bajo energía-sola** vs **bajo el score combinado**. Divergencia grande entre las dos = **bandera de punto ciego del reward** (estructura decision-relevante que la energía no ve). Es el detector que cazó el ataque #5 en Mendel; corre en design time, antes de certificar.
 
 ---
 
@@ -253,6 +258,46 @@ R = clip( (S_agente − S_ingenuo) / (S_verdad − S_ingenuo), 0, 1 )
 - **MDL v0 = `len(zlib.compress(ast_minify(code)))`** (anti code-golf; resuelve la contradicción zlib-crudo vs AST de v0.2). **Ensembles: `mdl = len(zlib.compress(concat(miembros minificados, orden canónico)))`** — la estructura compartida comprime una sola vez: un ensemble de variantes (incertidumbre honesta sobre parámetros/mecanismos) paga ~un miembro; uno de programas no relacionados paga completo. Resuelve la tensión MDL-vs-ensemble sin maquinaria extra (Decision Log v0.10).
 - Energy distance con columnas mixtas (categóricas + continuas): codificación declarada y fija.
 
+### 9.3 Score combinado — funcionales de stakes `[EN DEBATE — spec nuevo, Decision Log v0.26]`
+
+**Por qué.** El probe de Mendel (Decision Log v0.25) mostró que la energy distance sobre marginales casi no penaliza multimodalidad a momentos fijos: un oráculo Gaussiano (media+covarianza exactas por-régimen, **unimodal**) saca R=0.96 contra una verdad máximamente bimodal (clusters en ±12, ruido 0.5). La estructura latente, cuya firma observable es de orden superior (modos/colas), queda **invisible** al reward → la suite Mendel (constructos latentes) no es recompensable con energía-sola. Es el **ataque #5 (Goodhart del proxy) realizado** y cazado por el certificado de brecha de teoría **antes de entrenar**. Fix: el score por ítem suma, a la energía, términos de **funcional de decisión declarado en stakes** — porque "lo que importa" de una distribución no es solo su forma, es el funcional que mueve la decisión del cliente.
+
+**Score combinado por ítem.** Para cada ítem `(w, régimen, seed)`:
+```
+d_item = energy_distance(std(real), std(pred))            # identidad conductual (término base, como §9)
+       + Σ_F  c_F · | F(pred) − F(real) |                  # términos de funcional declarados, escala natural de F
+d_item = min(d_item, D_MAX_item)                           # cap per-ítem sobre la SUMA (como §9; crash → D_MAX)
+fid   -= w · d_item
+```
+- `F`: funcional de la biblioteca tipada (abajo), evaluado sobre **las muestras** (no sobre parámetros). `F(real)` se computa de la verdad con los mismos seeds apareados (CRN).
+- Escala natural de F: probabilidades en su `[0,1]` nativo; cuantiles estandarizados por la verdad (las stats de columna de §9). Sin transformación extra (declarada).
+- `c_F`: peso relativo del término, **calibrado UNA vez por suite** (como λ) vía el requisito de separación de la escalera L1 — **NO por caso** (calibrar por caso sería autoría). Provisional hasta E1.
+- La energía **sigue siendo el término base**: ningún funcional la reemplaza. Es la identidad conductual completa; el funcional solo agrega sensibilidad al rasgo decision-relevante que la energía no ve.
+
+**Biblioteca tipada de funcionales** (hermana de la de operadores §3: minable, **crece a demanda de stakes reales, nunca por imaginación suelta**; el solver jamás la ve):
+
+| Funcional | `F(muestras)` | Escala |
+|---|---|---|
+| Exceedance de umbral | `P(outcome ≷ θ)` | `[0,1]` nativo |
+| Cuantil | `q_τ(outcome)` | estandarizada por la verdad |
+| Media condicional por subgrupo declarado | `E[outcome \| subgrupo]` | estandarizada |
+| Pérdida esperada bajo regla declarada | `E[loss(decisión(régimen), outcome)]` | declarada por caso |
+
+**REGLA DE TRAZABILIDAD (anti-Goodhart del diseñador).** Cada funcional instanciado en un caso **DEBE citar la cláusula verbatim del brief que lo promete** — es el checklist de promesas (Decision Log v0.24) en reversa: el brief promete → el funcional lo codifica. Si el brief no enuncia el rasgo (p.ej. "daño" en Mendel), se **corrige el CASO** (brief + `meta.json`) con registro y re-certificación; **no se inventa el funcional para que el gap aparezca**. El writer del brief sigue ciego a batería y rivales; la cláusula vive en `meta.json` y el writer la narra.
+
+**Contrato del agente: INTACTO.** `model(regime, n, seed) → tabla`. Los funcionales se computan de SUS muestras, server-side, post-hoc; el agente nunca ve cuáles se scorean (como la batería). **Cero LLM** en el cómputo (los funcionales son numpy puro; CI §13-L0 sin cambios).
+
+**Batería: UN solo método.** El desacuerdo entre rivales (§6 paso 2) se computa en el **mismo** score combinado, no en energía-sola → la batería concentra peso donde los rivales discrepan en el **funcional** (colas, shifts de subtipo), dándole a la predicción (iii) su test real.
+
+**Normalización (§9.1): forma sin cambios.** S_verdad, S_ingenuo, S_agente con la MISMA función completa (ahora energía + funcionales − λ·MDL). `R(world.py)=1` se preserva (F(world.py)=F(verdad) salvo ruido de muestreo).
+
+**Mini red-team — "cómo Goodharteo el funcional" (5 ataques + defensa):**
+1. **Matchear el funcional, romper el resto** (ajustar P(daño) exacto con basura en lo demás) → lo paga la **energía base** (término aditivo dominante, no reemplazado).
+2. **Funcional no promovido por el brief** (el diseñador lo declara para fabricar el gap) → **regla de trazabilidad**: cita verbatim o se corrige el caso.
+3. **Colapsar el funcional a constante** (predecir siempre la media) → `|F(pred)−F(real)|` lo penaliza donde F es sensible al modo (P(daño) de un unimodal ≠ bimodal: la evidencia del probe, brecha 0.16–0.29).
+4. **Gaming del cap** (inflar un término para saturar D_MAX y ocultar otro) → cap per-ítem sobre la **suma**; la suite de sanidad de escala (§13) verifica ninguna distancia > D_MAX y el orden sin clipear.
+5. **Overfit a los seeds del funcional** (P̂ con n finito tiene ruido binomial) → seeds apareados (CRN) + m reps; **L2 verifica CV(R)<5% incluyendo los términos funcionales** (ruido binomial de P̂ con n=1000, m=2 ≈ 1.6 pts — dentro de presupuesto; verificar en el slice).
+
 ---
 
 ## 10. Tipos de caso = regiones del espacio producto `[ESTABLE]`
@@ -295,7 +340,7 @@ Contenedor de casos (§1) + harness (§8) + scorer (§9) + constructor de bater�
 La escalera E1→E4 (NORTH_STAR §6) valida constructo e hipótesis; estos niveles validan que la maquinaria mide algo *antes*:
 
 - **L0 — Tests de contrato**: unidades/semántica de regímenes entre mundo y maqueta (un error de escala que no crashea es un corruptor mudo); **sandbox red-team** (tests que intentan activamente leer `world.py`/`battery.json` desde el episodio y desde la submission, y deben fallar); **test de CI cero-LLM en el reward path** (el build falla si se viola).
-- **L1 — Escalera de verdades degradadas** (aceptación obligatoria por mundo, automática): se scorea una secuencia de submissions de calidad conocida — `world.py` exacto, verdad con parámetros perturbados, verdad con un mecanismo ablado, gemelo inocente, ajuste ingenuo, modelo nulo. **Forma del certificado en producción (v0.3): monotonía-por-eje + extremos** — `world.py` > cada rival > nulo, y dentro de cada eje de degradación, perturbación creciente ⇒ score no-creciente. NO se exige orden total entre peldaños heterogéneos: no está garantizado teóricamente, y tunear las degradaciones hasta que el orden pase sería autoría silenciosa — exactamente lo que L1 debe detectar. El **orden total** se usa solo como test de aceptación del scorer sobre el dummy canónico del Slice 1 (perillas elegidas para que valga). Margen inicial: cada separación exigida ≥5% del **rango de normalización (S_verdad − S_ingenuo), en unidades de R** (v0.12 — NO S_verdad − S_nulo: el nulo es un outlier patológico off-support que infla el rango, y R clipea la región sub-ingenuo; ver §9.1); modelo nulo v0 = marginales independientes del pool, usado como referencia de D_MAX y diagnóstico. Valores empíricos, ajustables. Si el certificado falla, la batería de ese mundo está rota. Es el detector automático de rivales débiles (ataque #13) — y en el Slice 1 destapó tres bugs de maquinaria del scorer (Decision Log v0.12), cumpliendo exactamente su función.
+- **L1 — Escalera de verdades degradadas** (aceptación obligatoria por mundo, automática): se scorea una secuencia de submissions de calidad conocida — `world.py` exacto, verdad con parámetros perturbados, verdad con un mecanismo ablado, gemelo inocente, ajuste ingenuo, modelo nulo. **Forma del certificado en producción (v0.3): monotonía-por-eje + extremos** — `world.py` > cada rival > nulo, y dentro de cada eje de degradación, perturbación creciente ⇒ score no-creciente. NO se exige orden total entre peldaños heterogéneos: no está garantizado teóricamente, y tunear las degradaciones hasta que el orden pase sería autoría silenciosa — exactamente lo que L1 debe detectar. El **orden total** se usa solo como test de aceptación del scorer sobre el dummy canónico del Slice 1 (perillas elegidas para que valga). Margen inicial: cada separación exigida ≥5% del **rango de normalización (S_verdad − S_ingenuo), en unidades de R** (v0.12 — NO S_verdad − S_nulo: el nulo es un outlier patológico off-support que infla el rango, y R clipea la región sub-ingenuo; ver §9.1); modelo nulo v0 = marginales independientes del pool, usado como referencia de D_MAX y diagnóstico. Valores empíricos, ajustables. Si el certificado falla, la batería de ese mundo está rota. Es el detector automático de rivales débiles (ataque #13) — y en el Slice 1 destapó tres bugs de maquinaria del scorer (Decision Log v0.12), cumpliendo exactamente su función. **Rung canónico extra para mundos de heterogeneidad latente (suite Mendel, v0.26): el oráculo de momentos matcheados** (Gaussiana media+cov exactas por-régimen, unimodal) — debe quedar **estrictamente por debajo** de `world.py` bajo el score COMBINADO; si lo iguala (como bajo energía-sola: R=0.96, Decision Log v0.25), el funcional de stakes no está capturando la estructura latente y el mundo no es recompensable. Es el rung que operacionaliza el certificado de Visibilidad (§7).
 - **L2 — Protocolo de varianza del reward**: con seeds de producción fijos el score es determinístico; el ruido relevante es la dependencia del azar de los seeds elegidos. Protocolo (v0.3): re-scorear con B sets de seeds re-sampleados (lado mundo y lado maqueta) la submission del **peldaño medio** de la escalera (donde el ruido más confunde) → **CV objetivo < 5% sobre R normalizado** (la escala cruda varía por mundo), reportando además el **CV de S_verdad** (denominador de R) y la **descomposición lado-mundo / solo-lado-maqueta** (mundo fijo, variando j). Medir en el primer slice junto con el costo K×n×m; ajustar K, n, m hasta cumplir. Sin esto, RL aprende ruido.
 - **L3 — E1** (instrumento): NORTH_STAR §6 — incluye mundos de control, baseline humano, auditoría humana de baterías, validez convergente/discriminante externa.
 - **L4 — E2/E3** (entrenamiento y abstracción). **L5 — E4** (transfer real).

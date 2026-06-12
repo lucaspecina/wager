@@ -105,15 +105,25 @@ sobre marginales casi no ve multimodalidad a momentos fijos** → la heterogenei
 NO es recompensable con el scoring actual. PERO un funcional `P(daño)` muestra brechas
 0.16–0.29 → el latente SÍ es decision-relevante.
 
-**FRENO Y DISCUSIÓN (decisión de Lucas, toca el reward path)**: extender el scoring a un
-**funcional de decisión declarado en stakes** (opción A, recomendada) vs término de
-multimodalidad en la distancia (B) vs rediseñar el latente (C). La suite Mendel espera esta
-decisión. El mundo + probe quedan commiteados como evidencia.
+**DECISIÓN (v0.26): (A) funcionales de stakes, SPEC-FIRST.** El spec está escrito
+(ARCHITECTURE §9.3 nuevo + certificado de Visibilidad §7 + rung oráculo §13-L1 + red-team de
+5 ataques de Goodhart del funcional) + Decision Log v0.26 con pre-registros P1–P4. **Sin
+implementación todavía — espera aprobación del spec** (protocolo spec-first + no-avanzar-sin-
+aprobación). El ataque #5 pasó a "realizado y mitigado".
 
-**Falta (tras la decisión de scoring)**: generalizar la fábrica (`derive_rivals`/
-`battery_builder`) a context-var por-caso (hoy hardcodea `cohort`); ladder + meta + batería
-derivada de Mendel; aceptación (ii). Detector de contaminación v1 = contraste-gemelo.
-Auditoría humana (ambos mundos). Stretch: E0-Mendel.
+**Próximo (tras aprobación del spec)**:
+1. Implementar el score combinado (energía + funcionales) en `wager/reward/` — biblioteca
+   tipada de funcionales (numpy puro, cero-LLM), término `Σ c_F·|F(pred)−F(real)|` capeado.
+2. **Pre-registros a testear**: (P1) dummy bajo combinado = escalera preservada; (P2) Mendel
+   theory gap reaparece ≥3× el dummy contra el oráculo de momentos; (P3) batería combinada
+   pesa colas/shifts de mix; (P4) CV(R)<5% con funcionales.
+3. Generalizar la fábrica (`derive_rivals`/`battery_builder`) a context-var por-caso (hoy
+   hardcodea `cohort`); ladder + meta + batería derivada de Mendel; aceptación (ii).
+4. Detector de contaminación v1 = contraste-gemelo (sobre el dummy). Stretch: E0-Mendel.
+
+**PENDIENTE de Lucas que sigue abierto** (del slice de derivación): re-auditoría del mapa de
+cobertura del dummy CON el checklist → expira el bootstrap; decisión del peso out-of-record
+(retractación item 5).
 
 ## Qué falta (más allá del slice)
 
