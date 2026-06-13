@@ -116,12 +116,21 @@ limpio lo proxia) → **Mendel v1**: biomarcador ruidoso + ausente de la fuente 
 Reglas nuevas: separación calibración/validación + banda de sensibilidad (`c_F` ×2/÷2);
 completitud = certificado de visibilidad (no whack-a-mole); VoI prohibido en reward.
 
-**Orden del slice (v0.27, EN CURSO)**: **(0)** brief+meta de Mendel v1 con trazabilidad →
-**(1)** P1 dummy (score combinado, identidad por construcción si no declara funcionales) →
-**(2)** calibrar `c_F` mínimo-suficiente + congelar → **(3)** P2-v1 con el par de control
-v0/v1 (gap mide REPRESENTACIÓN, no bimodalidad) → **(4)** P3 (batería pesa colas/shifts) →
-**(5)** P4 (CV<5%) + banda de sensibilidad. Implementación toca `wager/reward/` (biblioteca
-tipada de funcionales, numpy puro, cero-LLM) + generalizar la fábrica a context-var por-caso.
+**Orden del slice (v0.27, EN CURSO)**: **(0)** ✅ brief+meta de Mendel v1 con trazabilidad
+(`255d781`; FunctionalSpec en contratos) → **(1)** ✅ score combinado en `wager/reward/`
+(`7ccaf23`; functionals.py cero-LLM + D_MAX combinado amendment 4 + P1 identidad-por-
+construcción verificado; suite 85 verde) → **(2)** calibrar `c_F` mínimo-suficiente +
+congelar → **(3)** P2-v1 con el par de control v0/v1 → **(4)** P3 → **(5)** P4 + banda de
+sensibilidad.
+
+**v0.29 (acceso de rivales, β)**: la variación de mix entra por EXPERIMENTOS (fuente barata
+sigue single-mix); escalera (d) en dos modos — **(d-obs)** ancla la brecha mecanística,
+**(d-exp)** (presupuesto experimental estandarizado y scripteado, acceso igualado al agente)
+ancla la brecha de teoría. Principio: *brecha de teoría = contrafáctico con acceso igualado*.
+Línea sin-latente = sin cabezal de mezcla (MDN/GMM condicional NO cuentan); escalera con
+miembros de extrapolación SUAVE en mix (árboles plateau-ean = razón tonta). Pre-registro
+P2-v1 completo (tabla 2×2: v0 chico / v1 grande ≥3×v0 con el funcional cargando la mayor
+parte / mecanística grande en ambos / banda c_F ×2÷2 / guardia si v0 sale grande).
 
 **Después**: detector de contaminación v1 = contraste-gemelo (sobre el dummy). Stretch: E0-Mendel.
 
