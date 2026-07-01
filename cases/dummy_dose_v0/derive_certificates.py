@@ -10,6 +10,7 @@ Run:  .venv/Scripts/python cases/dummy_dose_v0/derive_certificates.py
 import sys
 from pathlib import Path
 
+from wager.contracts import RivalAccess
 from wager.factory.case_loader import load_battery, load_meta, load_world_sample
 from wager.factory.certificates import compute_certificates, per_regime_reading
 from wager.factory.derive_rivals import (
@@ -32,11 +33,13 @@ def main():
     params = meta.scoring
     source = list(meta.episode.observe_sources.values())[0]
 
-    pool = observational_pool(world_sample, source, 4000, 50001)
+    N_POOL, POOL_SEED = 4000, 50001
+    pool = observational_pool(world_sample, source, N_POOL, POOL_SEED)
     # dense, smooth coverage of the control surface (a capable rival's experiments)
-    train = experimental_grid(
-        world_sample, "dose", list(range(0, 11)), [-1.5, -0.75, 0.0, 0.75, 1.5], 400, 60001
-    )
+    DOSE_LEVELS = list(range(0, 11))
+    COHORTS = [-1.5, -0.75, 0.0, 0.75, 1.5]
+    N_TRAIN, TRAIN_SEED = 400, 60001
+    train = experimental_grid(world_sample, "dose", DOSE_LEVELS, COHORTS, N_TRAIN, TRAIN_SEED)
 
     naive = rival_naive(pool)
     no_latent = best_no_latent(train, pool)  # full data access (incl. experiments)
@@ -44,6 +47,18 @@ def main():
     pool_train = pool.copy()
     pool_train["cohort"] = 0.0  # the observational source is cohort 0
     associational = capacity_ladder(pool_train, pool)
+
+    # self-describing access (Decision Log v0.30). theory gap = vs PROTO-(d-exp):
+    # the ad-hoc do(dose) grid below; standardized=False until the v0.29 budget
+    # lands (paso 3). mechanistic gap = vs (a)/(d-obs): the observational pool.
+    theory_access = RivalAccess(
+        mode="experimental", n_rows=N_TRAIN * len(DOSE_LEVELS) * len(COHORTS), seed0=TRAIN_SEED,
+        grid=f"do(dose) x {len(DOSE_LEVELS)} levels x {len(COHORTS)} cohorts (ad-hoc, pre-standard)",
+        standardized=False,
+    )
+    mechanistic_access = RivalAccess(
+        mode="observational", n_rows=N_POOL, seed0=POOL_SEED, grid=None, standardized=True,
+    )
 
     # prior gap (cheap; rival c already built). Skip with --no-llm.
     prior_fn = None
@@ -56,7 +71,8 @@ def main():
 
     world_side = WorldSide(world_sample, battery, meta.column_names, params.n_samples)
     cert = compute_certificates(
-        world_sample, naive, no_latent, associational, world_side, params, prior_rival=prior_fn
+        world_sample, naive, no_latent, associational, world_side, params,
+        theory_access=theory_access, mechanistic_access=mechanistic_access, prior_rival=prior_fn,
     )
 
     print("=" * 70)
@@ -70,9 +86,14 @@ def main():
     if "R_prior" in cert:
         print(f"  R(prior-evoked, rival c)     = {cert['R_prior']:.3f}")
     print("-" * 70)
+    ta, ma = cert["theory_access"], cert["mechanistic_access"]
     print(f"  THEORY GAP      = {cert['theory_gap']:.3f}   "
           f"(prediction i: small ~0.1)  {'OK' if cert['theory_gap'] < 0.25 else 'CHECK'}")
+    print(f"    access: {ta['mode']} n={ta['n_rows']} seed0={ta['seed0']} "
+          f"{'STANDARDIZED' if ta['standardized'] else 'PROTO (pre-v0.29-standard)'} -- {ta['grid']}")
     print(f"  MECHANISTIC GAP = {cert['mechanistic_gap']:.3f}   (obs-only baseline)")
+    print(f"    access: {ma['mode']} n={ma['n_rows']} seed0={ma['seed0']} "
+          f"{'STANDARDIZED' if ma['standardized'] else 'PROTO'}")
     if "prior_gap" in cert:
         print(f"  PRIOR GAP       = {cert['prior_gap']:.3f}   "
               f"(prediction: LOW => prior knows the textbook trap; in a seeded "
@@ -101,6 +122,7 @@ def main():
         "theory_gap": cert["theory_gap"], "mechanistic_gap": cert["mechanistic_gap"],
         "R_no_latent": cert["R_no_latent"], "denom_raw": cert["denom_raw"],
         "best_associational": cert["best_associational"],
+        "theory_access": cert["theory_access"], "mechanistic_access": cert["mechanistic_access"],
     }
     if "prior_gap" in cert:
         stored["prior_gap"] = cert["prior_gap"]

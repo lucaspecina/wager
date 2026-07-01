@@ -79,16 +79,24 @@ def sec_certificates(case_dir) -> str:
     c = json.loads(cpath.read_text(encoding="utf-8"))
     body = "<p class='note'>Computable certificates (factory side, never seen by the agent): do the worlds " \
            "actually exert the pressures we claim? Each is in R units (fraction of the truth&ndash;naive range).</p>"
+    def _acc(key):  # self-describing rival access (Decision Log v0.30)
+        a = c.get(key)
+        if not a:
+            return "&mdash;"
+        tag = "standardized" if a.get("standardized") else "PROTO"
+        g = f"; {a['grid']}" if a.get("grid") else ""
+        return f"{a['mode']}, n={a['n_rows']}, seed0={a['seed0']} ({tag}{g})"
+
     rows = [
-        ["mechanistic gap", f"{c.get('mechanistic_gap', float('nan')):.3f}",
+        ["mechanistic gap", f"{c.get('mechanistic_gap', float('nan')):.3f}", _acc("mechanistic_access"),
          "truth minus the best model fit to OBSERVATIONAL data only -> you must EXPERIMENT to win (curve-fitting loses)"],
-        ["theory gap", f"{c.get('theory_gap', float('nan')):.3f}",
-         "truth minus the best model using only observable columns (no invented latent) -> pressure to INVENT hidden constructs"],
+        ["theory gap", f"{c.get('theory_gap', float('nan')):.3f}", _acc("theory_access"),
+         "truth minus the best model using only observable columns (no invented latent), access equalized to the agent -> pressure to INVENT hidden constructs"],
     ]
     if "prior_gap" in c:
-        rows.append(["prior gap", f"{c['prior_gap']:.3f}",
+        rows.append(["prior gap", f"{c['prior_gap']:.3f}", "&mdash;",
                      "truth minus the fresh-LLM prior-evoked model (contamination detector, in refinement)"])
-    body += table(["certificate", "value (R units)", "what it means"], rows, num_cols={1})
+    body += table(["certificate", "value (R units)", "rival access", "what it means"], rows, num_cols={1})
     body += (f"<p class='note'>discrimination scale (S_truth&minus;S_naive raw) = "
              f"{c.get('denom_raw', float('nan')):.4f}; the reward noise (CV) is ~1% of R, well below this, "
              f"so the exam genuinely separates good answers from bad.</p>")

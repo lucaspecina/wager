@@ -1,17 +1,19 @@
 # CURRENT_STATE — WAGER
 
 > Estado vivo del repo: qué corre hoy, qué falta. Lo mantiene Claude Code al día en cada
-> sesión de trabajo (regla: NORTH_STAR §0.10). Última actualización: **2026-06-12**.
+> sesión de trabajo (regla: NORTH_STAR §0.10). Última actualización: **2026-07-01**.
 
 ## Qué corre hoy
 
 **Slice 1 (reward path), Slice 2 (harness C1+C2+C3) y slice de derivación (rivales+batería+
-certificados) completos y verdes.** `pip install -e .[dev,agent]` + `pytest` → **82 verdes,
+certificados) completos y verdes.** `pip install -e .[dev,agent]` + `pytest` → **86 verdes,
 2 skip** (tests LLM opt-in; correr con `RUN_LLM_TESTS=1`). Python 3.13.
 
-**Última sesión (v0.24–v0.25)**: ronda de hardening de batería cerrada (commit `7e7f94e`,
-pusheada); **Mendel arrancado** y su predicción central (ii) **REFUTADA** por un control
-decisivo → hallazgo de scoring que espera decisión de Lucas (ver abajo + Decision Log v0.25).
+**Última sesión (v0.30)**: auditoría código-vs-docs por iniciativa propia → deriva doc-código
+v0.18→v0.29 corregida + checklist de supersesión + certificados auto-descriptivos (`RivalAccess`).
+Antes (v0.26–v0.29): decisión (A) funcionales de stakes (spec-first, triangulada), score
+combinado implementado (paso 1), acceso de rivales (β) en dos modos (d-obs)/(d-exp). **Próximo
+paso de trabajo: (2) calibrar `c_F` mínimo-suficiente** (ver "Orden del slice" abajo).
 
 - `wager/contracts/` — contratos Pydantic v2 (world, case, episode, reports).
 - `wager/reward/` — **zona cero-LLM** (allowlist de imports en CI + no importa
@@ -75,6 +77,13 @@ Pre-registración v0.17 (predicciones dummy/Mendel ANTES de correr). Hecho:
 - **Certificado dummy ✅ (predicción i CONFIRMADA)**: theory gap **0.062** (no-latente
   recupera R=0.938), mechanistic gap **0.990**. El dummy es trampa de confounding,
   no de latente. La disciplina cazó 2 artefactos de rival débil (predicción registrada).
+  - **Procedencia (footnotes v0.30, NO correcciones):** theory gap 0.062 = vs
+    **proto-(d-exp)** (grilla `do(dose)` ad-hoc, `standardized=false`); re-correr UNA
+    vez cuando exista la (d-exp) estandarizada (paso 3) — pre-registro: cambia poco.
+    Mechanistic gap = vs **(a) solo**; bajo v0.29 = vs best{(a),(d-obs)}; recomputar
+    cuando nazca (d-obs) — pre-registro: el dummy se mueve poco (movimiento grande →
+    investigar (a), no retunear). El acceso de cada rival viaja ahora EN el
+    `certificates.json` y el dossier (certificados auto-descriptivos).
 - **Rival (c) panel ✅** (LLM-first milestone, `rival_c_panel.py`): 3/3 LLMs frescos
   compilan a programa ejecutable; el prior aterriza < ingenuo (R≈0).
 
@@ -131,6 +140,18 @@ Línea sin-latente = sin cabezal de mezcla (MDN/GMM condicional NO cuentan); esc
 miembros de extrapolación SUAVE en mix (árboles plateau-ean = razón tonta). Pre-registro
 P2-v1 completo (tabla 2×2: v0 chico / v1 grande ≥3×v0 con el funcional cargando la mayor
 parte / mecanística grande en ambos / banda c_F ×2÷2 / guardia si v0 sale grande).
+
+**v0.30 (auditoría código-vs-docs por iniciativa propia, HECHA)**: una verificación de
+alineación destapó una **deriva doc-código v0.18→v0.29** — ARCHITECTURE §5 decía "(a) y (d)
+cero experimentos" pero el código entrena (d) sobre grilla experimental desde v0.18 (el código
+se adelantó a la doctrina; el papel quedó atrás). Tres contramedidas: **(1)** fix de §5 ((a)
+verbatim intocable; (d) → referencia a los dos modos de §7); **(2)** checklist de supersesión
+→ CLAUDE.md (grep obligatorio de cada ubicación de la regla vieja; "una regla, una casa");
+**(3)** **certificados auto-descriptivos** — el acceso del rival (modo/presupuesto/seeds) es
+campo Pydantic OBLIGATORIO del certificado (`RivalAccess`) con guarda (teoría=experimental,
+mecanística=observacional) e impreso en el dossier → una deriva se ve en cada dossier, no solo
+leyendo código. Footnotes de procedencia de los números históricos (arriba). Suite 86 verde.
+**(d-exp) NO participa de la calibración de `c_F`** (la brecha de teoría queda independiente).
 
 **Después**: detector de contaminación v1 = contraste-gemelo (sobre el dummy). Stretch: E0-Mendel.
 

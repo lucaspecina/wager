@@ -16,7 +16,7 @@ from typing import Callable
 
 import numpy as np
 
-from wager.contracts import ScoringParams
+from wager.contracts import RivalAccess, ScoringParams
 from wager.reward.scorer import WorldSide, regime_to_namespace, score_callable
 from wager.reward.seeds import derive_seed
 
@@ -35,19 +35,38 @@ def compute_certificates(
     associational_rivals: list[tuple[str, Callable]],
     world_side: WorldSide,
     params: ScoringParams,
+    theory_access: RivalAccess,
+    mechanistic_access: RivalAccess,
     prior_rival: Callable | None = None,
 ) -> dict:
-    """theory_gap: truth vs the best NO-LATENT model (fit with full data access,
-    incl. interventions). mechanistic_gap: truth vs the best ASSOCIATIONAL model
-    (OBSERVATIONAL data only -- 'what curve-fitting the data gives'; ARCHITECTURE
-    §7). prior_gap: truth vs the prior-evoked rival (c) -- low => the prior already
-    knows the world (contamination, attack #16). The references differ in DATA
-    ACCESS, not just structure.
+    """theory_gap: truth vs the best NO-LATENT model (fit with EXPERIMENTAL access,
+    access equalized to the agent -- the (d-exp) reference). mechanistic_gap: truth
+    vs the best ASSOCIATIONAL model (OBSERVATIONAL data only -- 'what curve-fitting
+    the data gives', the (d-obs)/a reference; ARCHITECTURE §7). prior_gap: truth vs
+    the prior-evoked rival (c) -- low => the prior already knows the world
+    (contamination, attack #16). The references differ in DATA ACCESS, not just
+    structure -- so `theory_access` / `mechanistic_access` are REQUIRED and travel
+    with the certificate (self-describing, Decision Log v0.30): a gap is meaningless
+    without the access its reference was fit under, and a drift must be visible in
+    the dossier, not hidden in code. Guard: theory must be experimental, mechanistic
+    observational (the v0.29 doctrine 'theory gap = counterfactual with equalized
+    access').
 
     Note (Decision Log v0.19): in R units mechanistic_gap == R(mechanistic
     reference) because naive is the 0 anchor; the substantive 'does this world
     discriminate' measurement is the RAW denominator s_truth - s_naive vs the
     reward noise floor (report `denom_raw`, compare to the L2 CV)."""
+    if theory_access.mode != "experimental":
+        raise ValueError(
+            f"theory gap requires an EXPERIMENTAL-access rival (d-exp), got "
+            f"{theory_access.mode!r} -- representation and data confound otherwise "
+            "(ARCHITECTURE §7, Decision Log v0.29)"
+        )
+    if mechanistic_access.mode != "observational":
+        raise ValueError(
+            f"mechanistic gap requires an OBSERVATIONAL-access rival (d-obs/a), got "
+            f"{mechanistic_access.mode!r} (ARCHITECTURE §7)"
+        )
     s_truth = score_callable(world_sample, world_side, params)
     s_naive = score_callable(naive_rival, world_side, params)
     s_no_latent = score_callable(no_latent_rival, world_side, params)
@@ -70,6 +89,10 @@ def compute_certificates(
         "theory_gap": _r(s_no_latent, s_truth, s_naive),
         "mechanistic_gap": _r(assoc[best_assoc_name], s_truth, s_naive),
         "best_associational": best_assoc_name,
+        # self-describing access (Decision Log v0.30): the gap is meaningless
+        # without the access its reference rival was fit under
+        "theory_access": theory_access.model_dump(),
+        "mechanistic_access": mechanistic_access.model_dump(),
     }
     if prior_rival is not None:
         s_prior = score_callable(prior_rival, world_side, params)

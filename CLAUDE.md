@@ -34,6 +34,8 @@ El código nunca contradice los docs en silencio: si la implementación revela u
 - Tests de wiring por componente; tests E2E con LLM real solo cuando el wiring está verde.
 - Toda decisión de diseño no trivial → Decision Log de NORTH_STAR (fecha — decisión — razón en una línea).
 - Open questions nuevas → NORTH_STAR §10 (inbox); al resolverse, migran al Decision Log.
+- **Checklist de supersesión (regla dura, Decision Log v0.30)**: toda entrada del Decision Log que **supersede** una decisión previa DEBE hacer **grep de la regla vieja en TODOS los docs** y enumerar + tildar cada ubicación que la edita. Principio **"una regla, una casa"**: la regla vive en UNA sección; el resto referencia. (Origen: la v0.29 editó ARCHITECTURE §7 pero olvidó §5, que quedó contradiciendo en silencio — lo destapó una auditoría código-vs-docs.)
+- **Auditoría código-vs-docs por iniciativa propia**: ante una inconsistencia doc-doc o doc-código, **reportar con ubicación exacta + fix propuesto, nunca arreglar en silencio**; aplicar recién con aprobación (NORTH_STAR §0.1: el código nunca contradice los docs en silencio).
 
 ## Referencia SREG — política de cuarentena
 
@@ -62,4 +64,4 @@ El repo SREG (proyecto anterior, mismo autor) es **referencia de SOLO LECTURA** 
 
 ## Estado actual
 
-El estado vivo (qué corre hoy, qué falta, próximo paso) está en `CURRENT_STATE.md` — mantenerlo SIEMPRE actualizado al cerrar cada sesión de trabajo. Decision Log en v0.26 (NORTH_STAR); ARCHITECTURE con §9.3 (score combinado — funcionales de stakes). Último: decisión (A) funcionales de stakes, spec escrito esperando aprobación (no implementado).
+El estado vivo (qué corre hoy, qué falta, próximo paso) está en `CURRENT_STATE.md` — mantenerlo SIEMPRE actualizado al cerrar cada sesión de trabajo. Decision Log en v0.30 (NORTH_STAR); ARCHITECTURE con §9.3 (score combinado) + §7 ((d-obs)/(d-exp) + certificado de visibilidad). Último: score combinado implementado (paso 1); ronda v0.30 de auditoría doc-código (certificados auto-descriptivos). **Próximo paso: (2) calibrar `c_F` mínimo-suficiente.**

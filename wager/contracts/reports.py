@@ -5,6 +5,25 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class RivalAccess(BaseModel):
+    """The data access a gap-defining rival was fit under (Decision Log v0.30,
+    self-describing certificates). Required so an access drift is visible in EVERY
+    dossier instead of discoverable only by reading code (which is exactly how the
+    v0.18->v0.29 drift went unnoticed). Doctrine (ARCHITECTURE §7, v0.29): the
+    theory gap MUST be measured vs an EXPERIMENTAL-access rival (d-exp, access
+    equalized to the agent); the mechanistic gap vs an OBSERVATIONAL one (d-obs / a).
+    `standardized=False` flags the proto (d-exp) (ad-hoc do(dose) grid) that exists
+    until the v0.29 standardized experimental budget lands (paso 3)."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    mode: Literal["observational", "experimental"]
+    n_rows: int = Field(ge=0)  # fitting budget (total rows the rival saw)
+    seed0: int  # deterministic seed origin (reproducibility)
+    grid: str | None = None  # experimental: factorial grid description; None for obs
+    standardized: bool = False  # True once the v0.29 standardized (d-exp) exists
+
+
 class ItemScore(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
