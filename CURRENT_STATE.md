@@ -98,10 +98,11 @@ Pre-registración v0.17 (predicciones dummy/Mendel ANTES de correr). Hecho:
    en el dossier. **Retractación de Claude** (item 5): out-of-record discrimina el rung
    linealizado → suba de peso a discutir con Lucas.
 
-**PENDIENTE de Lucas (gatea el cierre del slice de derivación)**:
-- Re-auditoría del mapa de cobertura CON el checklist de promesas → recién ahí **expira el
-  bootstrap** (battery.json de mano → derivada).
-- Decisión sobre el peso out-of-record (consecuencia de la retractación item 5).
+**Pendientes v0.24 — CERRADOS/ENCAMINADOS (v0.31)**:
+- ✅ **Peso out-of-record DECIDIDO**: mantener y canonizar **banda 20–35%** fuera-de-registro
+  (ARCHITECTURE §6; los stakes fijan el nivel, la discriminación es constraint ya satisfecho).
+- Re-auditoría del mapa de cobertura: **la hace Lucas** con el checklist de promesas → con su
+  APROBADO expira el bootstrap (battery.json de mano → derivada). Sigue gateado en Lucas.
 
 ## Mendel (2º mundo) — predicción (ii) REFUTADA, hallazgo de scoring (Decision Log v0.25)
 
@@ -153,11 +154,17 @@ mecanística=observacional) e impreso en el dossier → una deriva se ve en cada
 leyendo código. Footnotes de procedencia de los números históricos (arriba). Suite 86 verde.
 **(d-exp) NO participa de la calibración de `c_F`** (la brecha de teoría queda independiente).
 
-**Después**: detector de contaminación v1 = contraste-gemelo (sobre el dummy). Stretch: E0-Mendel.
+**v0.31 (cierres + pre-registro del paso 2)**: out-of-record decidido (banda 20–35% canonizada
+en ARCHITECTURE §6); re-auditoría del dummy queda en manos de Lucas (con su OK expira el
+bootstrap). **Protocolo de calibración de `c_F` PRE-REGISTRADO** (Decision Log v0.31): barrido
+log-grid con D_MAX recomputado por candidato; gates = orden canónico ≥3×CV (a c_F=0 DEBE
+fallar) + ablación de cada operador ≥3×CV (visibilidad, gate primario) + oráculo < verdad
+(diagnóstico, sin rank requerido); mini-L2 (B=20) dentro del barrido (el ruido binomial del
+funcional acota c_F por arriba → sándwich = hallazgo); **grilla de calibración FIJA** (la
+batería derivada es función de c_F → circular; P3 queda como validación independiente);
+Mendel v0 se AUTORA como caso (brief+meta, mismo funcional que v1). Banda ×2/÷2 al cierre.
 
-**PENDIENTE de Lucas que sigue abierto** (del slice de derivación): re-auditoría del mapa de
-cobertura del dummy CON el checklist → expira el bootstrap; decisión del peso out-of-record
-(retractación item 5).
+**Después**: detector de contaminación v1 = contraste-gemelo (sobre el dummy). Stretch: E0-Mendel.
 
 ## Qué falta (más allá del slice)
 

@@ -178,6 +178,8 @@ Cobertura imperfecta de rivales = ataque #13: se amortigua con la cola de audito
 
 Forma de la batería como dial de tipo de caso: concentrada en decisiones (casos con cliente) ↔ plana y ancha (system mapping). Las dos muertes (NORTH_STAR §4.4): angosta → examen cerrado; uniforme → la trivia diluye.
 
+**Banda fuera-de-registro (canonizada, Decision Log v0.31): 20–35% del peso total** en regímenes fuera del soporte histórico, como default de forma. Los stakes fijan el NIVEL dentro de la banda; la discriminación es un constraint (verificado por escalera-por-banda: fuera-de-registro testea saturación/extrapolación — un skill que in-support no testea; v0.24 item 5). Fuera de la banda en cualquier dirección → revisar declaración de stakes, no retunear pesos.
+
 ---
 
 ## 7. Certificados por caso (computados en design time) `[ESTABLE]`
